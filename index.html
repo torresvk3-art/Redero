@@ -286,7 +286,7 @@
             resDiv.innerHTML = "";
             
             if (type === 'podcast') {
-                // Direct Apple API (Supports CORS)
+                // Direct Apple API
                 const res = await fetch(`https://itunes.apple.com/search?media=podcast&term=${encodeURIComponent(q)}`);
                 const data = await res.json();
                 data.results.slice(0, 5).forEach(pod => {
@@ -298,8 +298,9 @@
                 });
             } 
             else if (type === 'reddit') {
-                // Direct Reddit API (Supports CORS)
-                const res = await fetch(`https://www.reddit.com/subreddits/search.json?q=${encodeURIComponent(q)}`);
+                // Proxy to bypass Reddit CORS
+                const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://www.reddit.com/subreddits/search.json?q=${q}`)}`;
+                const res = await fetch(proxyUrl);
                 const data = await res.json();
                 if (data.data && data.data.children) {
                     data.data.children.slice(0, 5).forEach(child => {
@@ -313,21 +314,33 @@
                 }
             } 
             else if (type === 'youtube') {
-                // For YouTube, bypass searching and just convert URL
-                if (q.includes("youtube.com/channel/")) {
-                    const id = q.split("channel/")[1].split("?")[0];
-                    addSubscription(`YouTube Channel`, `https://www.youtube.com/feeds/videos.xml?channel_id=${id}`);
-                } else if (q.includes("youtube.com/playlist?list=")) {
-                    const id = q.split("playlist?list=")[1].split("&")[0];
-                    addSubscription(`YouTube Playlist`, `https://www.youtube.com/feeds/videos.xml?playlist_id=${id}`);
+                resDiv.innerHTML = "Resolving YouTube Channel...";
+                const urlToFetch = q.startsWith("@") ? `https://www.youtube.com/${q}` : q;
+                
+                // Proxy to bypass Google HTML CORS
+                const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(urlToFetch)}`;
+                const res = await fetch(proxyUrl);
+                const html = await res.text();
+                
+                const match = html.match(/channel_id=([a-zA-Z0-9_-]+)/) || html.match(/"channelId":"([a-zA-Z0-9_-]+)"/);
+                if (match && match[1]) {
+                    const titleMatch = html.match(/<title>(.*?) - YouTube<\/title>/);
+                    const title = titleMatch ? titleMatch[1].replace(' - YouTube', '') : "YouTube Channel";
+                    resDiv.innerHTML += `
+                        <div class="glass-card" style="display:flex; justify-content:space-between; align-items:center; padding:15px;">
+                            <div><span class="item-title">${title}</span><span class="item-meta">YouTube</span></div>
+                            <button class="text-btn" onclick="addSubscription('${title.replace(/'/g, "\\'")}', 'https://www.youtube.com/feeds/videos.xml?channel_id=${match[1]}')">Add</button>
+                        </div>`;
                 } else {
-                    resDiv.innerHTML = "For YouTube, please paste the exact 'youtube.com/channel/...' or playlist URL.";
+                    resDiv.innerHTML = "Could not locate YouTube ID. Ensure you enter the exact channel URL or @handle.";
                 }
             }
             if(resDiv.innerHTML === "") resDiv.innerHTML = "No results found.";
-        } catch(e) { resDiv.innerHTML = "Search failed. Check connection."; }
+        } catch(e) { 
+            console.error(e);
+            resDiv.innerHTML = "Search failed. Please check your connection or try a different term."; 
+        }
     }
-
     function importOPML(e) {
         const file = e.target.files[0];
         if(!file) return;
