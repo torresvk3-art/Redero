@@ -6,30 +6,43 @@
     <title>Inbox — Recall</title>
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/epub.js/0.3.88/epub.min.js"></script>
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <style>
+        /* Light Theme (Default) */
         :root {
             --things-blue: #2196F3;
-            --bg-gray: #F2F2F7;
+            --bg-main: #F2F2F7;
             --card-bg: #FFFFFF;
             --text-main: #1C1C1E;
             --text-secondary: #8E8E93;
+            --border-color: #E5E5EA;
+            --nav-bg: rgba(255, 255, 255, 0.85);
+        }
+
+        /* Pure Black Dark Theme */
+        body.dark-theme {
+            --things-blue: #0A84FF;
+            --bg-main: #000000;
+            --card-bg: #1C1C1E;
+            --text-main: #FFFFFF;
+            --text-secondary: #98989D;
+            --border-color: #38383A;
+            --nav-bg: rgba(0, 0, 0, 0.85);
         }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: var(--bg-gray);
+            background-color: var(--bg-main);
             color: var(--text-main);
             margin: 0;
             padding: 0;
             -webkit-font-smoothing: antialiased;
+            transition: background-color 0.3s, color 0.3s;
         }
 
-        /* Things 3 Header with Export Button */
         header {
             padding: 60px 20px 20px 25px;
-            background: var(--bg-gray);
+            background: var(--bg-main);
             position: sticky;
             top: 0;
             z-index: 10;
@@ -38,114 +51,62 @@
             align-items: flex-end;
         }
 
-        header h1 {
-            font-size: 34px;
-            font-weight: 800;
-            margin: 0;
-            letter-spacing: -0.5px;
-        }
-
-        .export-btn {
-            color: var(--things-blue);
-            font-size: 17px;
-            font-weight: 500;
-            background: none;
-            border: none;
-            padding: 0;
-            margin-bottom: 4px;
-            cursor: pointer;
-        }
+        header h1 { font-size: 34px; font-weight: 800; margin: 0; letter-spacing: -0.5px; }
+        
+        .header-btns { display: flex; gap: 15px; }
+        .icon-btn { color: var(--things-blue); font-size: 17px; font-weight: 500; background: none; border: none; padding: 0; margin-bottom: 4px; cursor: pointer; }
 
         .container { padding: 0 15px 100px 15px; }
 
-        /* Card Styling */
-        .note-card {
+        .card {
             background: var(--card-bg);
             border-radius: 12px;
             padding: 16px;
             margin-bottom: 12px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            transition: transform 0.1s ease;
         }
 
-        .note-card:active { transform: scale(0.98); }
+        .note-source { font-size: 12px; font-weight: 600; color: var(--things-blue); text-transform: uppercase; margin-bottom: 8px; }
+        .note-text { font-size: 17px; line-height: 1.4; margin-bottom: 10px; border-left: 3px solid var(--border-color); padding-left: 10px;}
+        .note-thoughts { font-size: 15px; color: var(--text-main); border-top: 1px solid var(--border-color); padding-top: 10px; }
 
-        .note-source {
-            font-size: 12px;
-            font-weight: 600;
-            color: var(--things-blue);
-            text-transform: uppercase;
-            margin-bottom: 8px;
-            letter-spacing: 0.5px;
-        }
+        .input-group { background: var(--card-bg); border-radius: 12px; padding: 10px; margin-bottom: 12px; display: flex; align-items: center;}
+        input { width: 100%; border: none; outline: none; font-size: 17px; padding: 8px; background: transparent; color: var(--text-main); }
+        
+        /* Action Buttons */
+        .btn-primary { background: var(--things-blue); color: white; border: none; padding: 12px; border-radius: 10px; width: 100%; font-weight: 600; font-size: 16px; cursor: pointer; margin-bottom: 10px;}
+        .btn-secondary { background: var(--card-bg); color: var(--text-main); border: 1px solid var(--border-color); padding: 12px; border-radius: 10px; width: 100%; font-weight: 600; font-size: 16px; cursor: pointer; margin-bottom: 20px;}
 
-        .note-text { font-size: 17px; line-height: 1.4; margin-bottom: 10px; border-left: 3px solid #E5E5EA; padding-left: 10px;}
+        /* Subscription List */
+        .sub-item { padding: 12px 0; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;}
+        .sub-item:last-child { border-bottom: none; }
+        .sub-item h4 { margin: 0 0 4px 0; font-size: 16px;}
+        .sub-item p { margin: 0; font-size: 13px; color: var(--text-secondary);}
 
-        .note-thoughts {
-            font-size: 15px;
-            color: var(--text-main);
-            border-top: 1px solid #F2F2F7;
-            padding-top: 10px;
-        }
-
-        /* Inputs */
-        .input-group { background: white; border-radius: 12px; padding: 10px; margin-bottom: 20px; }
-        input, textarea {
-            width: 100%; border: none; outline: none; font-size: 17px; padding: 8px; box-sizing: border-box;
-        }
-
-        /* Navigation */
         nav {
-            position: fixed;
-            bottom: 0; width: 100%;
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            display: flex;
-            justify-content: space-around;
+            position: fixed; bottom: 0; width: 100%;
+            background: var(--nav-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            display: flex; justify-content: space-around;
             padding: 10px 0 calc(10px + env(safe-area-inset-bottom));
-            border-top: 0.5px solid #C6C6C8;
+            border-top: 0.5px solid var(--border-color);
         }
-
-        nav button {
-            background: none; border: none; color: var(--text-secondary);
-            font-size: 11px; font-weight: 500; text-align: center;
-        }
-
+        nav button { background: none; border: none; color: var(--text-secondary); font-size: 11px; font-weight: 500; }
         nav button.active { color: var(--things-blue); }
 
-        /* Floating Magic Button */
-        #magic-btn {
-            position: fixed;
-            right: 25px;
-            bottom: 100px;
-            width: 56px;
-            height: 56px;
-            background: var(--things-blue);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 30px;
-            box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
-            border: none;
-            z-index: 20;
-        }
+        #magic-btn { position: fixed; right: 25px; bottom: 100px; width: 56px; height: 56px; background: var(--things-blue); border-radius: 50%; color: white; font-size: 30px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); border: none; z-index: 20; display: flex; align-items: center; justify-content: center;}
 
-        /* Views */
         .view { display: none; }
         .view.active { display: block; }
-
-        /* Dictation UI */
-        #dictation-status { color: var(--things-blue); font-size: 12px; font-weight: bold; display: none; text-align: center; margin-top: 10px;}
     </style>
 </head>
 <body>
 
 <header>
     <h1 id="view-title">Inbox</h1>
-    <button class="export-btn" id="export-btn" onclick="exportToObsidian()">Export</button>
+    <div class="header-btns">
+        <button class="icon-btn" onclick="toggleTheme()">◑ Theme</button>
+        <button class="icon-btn" id="export-btn" onclick="exportToObsidian()">Export</button>
+    </div>
 </header>
 
 <div class="container">
@@ -154,22 +115,38 @@
         <div id="notes-list"></div>
     </div>
 
-    <!-- READ VIEW (RSS) -->
+    <!-- READ VIEW (Subscriptions & Search) -->
     <div id="view-read" class="view">
-        <div class="input-group" style="display:flex;">
-            <input type="url" id="rss-input" placeholder="Paste RSS/Podcast Link">
-            <button onclick="addSource()" style="color:var(--things-blue); background:none; border:none; font-weight:600; padding:0 10px;">Add</button>
+        
+        <!-- Add Tools -->
+        <div style="margin-bottom: 30px;">
+            <div class="input-group">
+                <input type="text" id="podcast-search" placeholder="Search Apple Podcasts...">
+                <button onclick="searchApplePodcasts()" class="icon-btn" style="padding: 0 10px;">Search</button>
+            </div>
+            
+            <input type="file" id="opml-upload" accept=".opml,.xml" style="display:none" onchange="importOPML(event)">
+            <button class="btn-secondary" onclick="document.getElementById('opml-upload').click()">📁 Import OPML File</button>
+            
+            <div id="search-results"></div>
         </div>
-        <div id="content-list"></div>
+
+        <h3 style="margin-top: 0;">My Subscriptions</h3>
+        <div class="card" id="subscription-list">
+            <!-- Subscriptions load here -->
+        </div>
+        
+        <!-- Area to read a specific feed -->
+        <div id="feed-content" style="margin-top: 20px;"></div>
     </div>
 
     <!-- PLAYER VIEW -->
     <div id="view-player" class="view">
-        <div class="note-card">
+        <div class="card">
             <h3 id="player-title" style="margin-top: 0;">No Media Loaded</h3>
             <audio id="audio-player" controls style="width:100%"></audio>
-            <div id="dictation-status">Listening... Speak your thoughts now.</div>
-            <button onclick="startSnip()" style="background:var(--things-blue); color:white; border:none; padding:15px; border-radius:10px; width:100%; margin-top:15px; font-weight:bold; font-size: 16px;">✂️ Snip & Dictate</button>
+            <div id="dictation-status" style="color:var(--things-blue); font-size:12px; font-weight:bold; display:none; text-align:center; margin-top:10px;">Listening... Speak now.</div>
+            <button onclick="startSnip()" class="btn-primary" style="margin-top:15px;">✂️ Snip & Dictate</button>
         </div>
     </div>
 </div>
@@ -177,46 +154,50 @@
 <button id="magic-btn" onclick="addNewManualNote()">+</button>
 
 <nav>
-    <button onclick="showTab('inbox')" id="btn-inbox" class="active">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block; margin: 0 auto 4px;"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path></svg>
-        Inbox
-    </button>
-    <button onclick="showTab('read')" id="btn-read">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block; margin: 0 auto 4px;"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
-        Read
-    </button>
-    <button onclick="showTab('player')" id="btn-player">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block; margin: 0 auto 4px;"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
-        Player
-    </button>
+    <button onclick="showTab('inbox')" id="btn-inbox" class="active">Inbox</button>
+    <button onclick="showTab('read')" id="btn-read">Read / Search</button>
+    <button onclick="showTab('player')" id="btn-player">Player</button>
 </nav>
 
 <script>
-    let store = JSON.parse(localStorage.getItem('things_recall_db')) || { notes: [], sources: [] };
+    let store = JSON.parse(localStorage.getItem('things_recall_db')) || { notes: [], subscriptions: [] };
 
+    // --- THEME LOGIC ---
+    if(localStorage.getItem('theme') === 'dark') {
+        document.body.classList.add('dark-theme');
+    }
+
+    function toggleTheme() {
+        document.body.classList.toggle('dark-theme');
+        localStorage.setItem('theme', document.body.classList.contains('dark-theme') ? 'dark' : 'light');
+    }
+
+    // --- NAVIGATION ---
     function showTab(tab) {
         document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
         document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
         document.getElementById('view-' + tab).classList.add('active');
         document.getElementById('btn-' + tab).classList.add('active');
         
-        const title = tab.charAt(0).toUpperCase() + tab.slice(1);
+        let title = "Inbox";
+        if (tab === 'read') title = "Library";
+        if (tab === 'player') title = "Player";
         document.getElementById('view-title').innerText = title;
         
-        // Hide export button if not on Inbox
         document.getElementById('export-btn').style.display = (tab === 'inbox') ? 'block' : 'none';
         
         if(tab === 'inbox') renderNotes();
+        if(tab === 'read') renderSubscriptions();
     }
 
-    // --- NOTES & THOUGHTS LOGIC ---
+    // --- INBOX LOGIC ---
     function renderNotes() {
         const list = document.getElementById('notes-list');
-        list.innerHTML = store.notes.length ? '' : '<p style="color:#8E8E93; text-align:center; margin-top:40px;">Your inbox is empty.</p>';
+        list.innerHTML = store.notes.length ? '' : '<p style="color:var(--text-secondary); text-align:center; margin-top:40px;">Your inbox is empty.</p>';
         
         store.notes.sort((a,b) => b.id - a.id).forEach(note => {
             const el = document.createElement('div');
-            el.className = 'note-card';
+            el.className = 'card';
             el.innerHTML = `
                 <div class="note-source">${note.source}</div>
                 <div class="note-text" onclick="editThoughts(${note.id})">${note.text}</div>
@@ -233,7 +214,7 @@
     }
 
     function addNewManualNote() {
-        const text = prompt("Quick Note / Highlight:");
+        const text = prompt("Quick Note:");
         if (text) saveNote(text, "Manual Entry");
     }
 
@@ -247,38 +228,15 @@
         }
     }
 
-    // --- OBSIDIAN EXPORT LOGIC ---
     function exportToObsidian() {
-        if (store.notes.length === 0) {
-            alert("Nothing to export!");
-            return;
-        }
-
-        const dateStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-        let markdown = `# Inbox Processing - ${dateStr}\n\n`;
-
-        // Format each note into Markdown
+        if (store.notes.length === 0) return alert("Nothing to export!");
+        let markdown = `# Inbox Processing - ${new Date().toISOString().split('T')[0]}\n\n`;
         store.notes.forEach(note => {
-            markdown += `### ${note.source}\n`;
-            markdown += `> ${note.text}\n\n`;
-            if (note.thoughts) {
-                markdown += `${note.thoughts}\n\n`;
-            }
-            markdown += `---\n\n`;
+            markdown += `### ${note.source}\n> ${note.text}\n\n${note.thoughts ? note.thoughts + '\n\n' : ''}---\n\n`;
         });
-
-        // Construct the Obsidian URL Scheme
-        // This opens Obsidian, creates a new note titled "Inbox Processing - [Date]", and pastes the markdown inside.
-        const noteTitle = encodeURIComponent(`Inbox Processing - ${dateStr}`);
-        const noteBody = encodeURIComponent(markdown);
-        const obsidianUri = `obsidian://new?name=${noteTitle}&content=${noteBody}`;
-
-        // Fire the URL scheme
-        window.location.href = obsidianUri;
-
-        // Ask the user if they want to clear their Inbox after a short delay
+        window.location.href = `obsidian://new?name=Inbox_${Date.now()}&content=${encodeURIComponent(markdown)}`;
         setTimeout(() => {
-            if(confirm("Successfully exported to Obsidian? Tap 'OK' to clear your Inbox, or 'Cancel' to keep these notes.")) {
+            if(confirm("Clear Inbox after export?")) {
                 store.notes = [];
                 localStorage.setItem('things_recall_db', JSON.stringify(store));
                 renderNotes();
@@ -286,78 +244,150 @@
         }, 1000);
     }
 
-    // --- SPEECH TO TEXT / SNIPPING ---
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    let recognition = null;
-    
-    if (SpeechRecognition) {
-        recognition = new SpeechRecognition();
-        recognition.lang = 'en-US';
-        recognition.interimResults = false;
+    // --- SUBSCRIPTIONS & OPML ---
+    function renderSubscriptions() {
+        const list = document.getElementById('subscription-list');
+        list.innerHTML = store.subscriptions.length ? '' : '<p style="color:var(--text-secondary); font-size:14px;">No subscriptions yet.</p>';
         
+        store.subscriptions.forEach((sub, index) => {
+            const div = document.createElement('div');
+            div.className = 'sub-item';
+            div.innerHTML = `<div><h4>${sub.title}</h4><p>RSS / Podcast</p></div>`;
+            div.onclick = () => loadFeed(sub.url, sub.title);
+            list.appendChild(div);
+        });
+    }
+
+    function addSubscription(title, url) {
+        if(!store.subscriptions.find(s => s.url === url)) {
+            store.subscriptions.push({ title, url });
+            localStorage.setItem('things_recall_db', JSON.stringify(store));
+            renderSubscriptions();
+            alert(`Added: ${title}`);
+        }
+    }
+
+    function importOPML(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(e.target.result, "text/xml");
+            const outlines = doc.querySelectorAll('outline[xmlUrl]');
+            let count = 0;
+            outlines.forEach(node => {
+                const title = node.getAttribute('title') || node.getAttribute('text') || "Unknown Feed";
+                const url = node.getAttribute('xmlUrl');
+                if(url && !store.subscriptions.find(s => s.url === url)) {
+                    store.subscriptions.push({ title, url });
+                    count++;
+                }
+            });
+            localStorage.setItem('things_recall_db', JSON.stringify(store));
+            renderSubscriptions();
+            alert(`Successfully imported ${count} feeds!`);
+        };
+        reader.readAsText(file);
+    }
+
+    // --- PODCAST SEARCH (iTunes API) ---
+    async function searchApplePodcasts() {
+        const query = document.getElementById('podcast-search').value;
+        if(!query) return;
+        
+        const resultsDiv = document.getElementById('search-results');
+        resultsDiv.innerHTML = "<p>Searching...</p>";
+        
+        try {
+            const res = await fetch(`https://itunes.apple.com/search?media=podcast&term=${encodeURIComponent(query)}`);
+            const data = await res.json();
+            
+            resultsDiv.innerHTML = "";
+            if(data.results.length === 0) return resultsDiv.innerHTML = "<p>No podcasts found.</p>";
+
+            data.results.slice(0, 5).forEach(pod => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <img src="${pod.artworkUrl100}" style="width:50px; height:50px; border-radius:8px;">
+                            <div>
+                                <strong style="font-size:14px;">${pod.collectionName}</strong><br>
+                                <small style="color:var(--text-secondary)">${pod.artistName}</small>
+                            </div>
+                        </div>
+                        <button class="icon-btn" style="font-size:24px;" onclick="addSubscription('${pod.collectionName.replace(/'/g, "\\'")}', '${pod.feedUrl}')">+</button>
+                    </div>
+                `;
+                resultsDiv.appendChild(card);
+            });
+        } catch (e) {
+            resultsDiv.innerHTML = "<p>Error searching. Try again.</p>";
+        }
+    }
+
+    // --- FETCHING FEED CONTENT ---
+    async function loadFeed(url, title) {
+        const contentDiv = document.getElementById('feed-content');
+        contentDiv.innerHTML = `<p style="text-align:center;">Loading ${title}...</p>`;
+        
+        try {
+            const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}`);
+            const data = await res.json();
+            
+            if(data.status === 'ok') {
+                contentDiv.innerHTML = `<h3 style="border-bottom: 1px solid var(--border-color); padding-bottom:10px;">${title} Episodes/Posts</h3>`;
+                data.items.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.innerHTML = `<div style="font-size:15px; font-weight:600; margin-bottom:5px;">${item.title}</div>`;
+                    
+                    if(item.enclosure && item.enclosure.type.includes('audio')) {
+                        card.innerHTML += `<button class="btn-primary" style="padding:8px; margin-top:10px; width:auto;">▶ Play Audio</button>`;
+                        card.onclick = () => {
+                            document.getElementById('audio-player').src = item.enclosure.link;
+                            document.getElementById('player-title').innerText = item.title;
+                            showTab('player');
+                        };
+                    } else {
+                        card.innerHTML += `<small style="color:var(--text-secondary)">Text Article</small>`;
+                        card.onclick = () => window.open(item.link, '_blank');
+                    }
+                    contentDiv.appendChild(card);
+                });
+            } else {
+                contentDiv.innerHTML = `<p>Error loading feed.</p>`;
+            }
+        } catch(e) {
+            contentDiv.innerHTML = `<p>Error loading feed.</p>`;
+        }
+    }
+
+    // --- DICTATION ---
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition = SpeechRecognition ? new SpeechRecognition() : null;
+    if (recognition) {
         recognition.onresult = (event) => {
             const transcript = event.results[0][0].transcript;
             const audio = document.getElementById('audio-player');
-            const timestamp = Math.floor(audio.currentTime);
-            const sourceName = document.getElementById('player-title').innerText;
-            
-            saveNote(`Audio Clip (${timestamp}s)`, sourceName, transcript);
+            saveNote(`Audio Clip (${Math.floor(audio.currentTime)}s)`, document.getElementById('player-title').innerText, transcript);
             document.getElementById('dictation-status').style.display = 'none';
             alert("Saved to Inbox!");
         };
-
-        recognition.onerror = () => {
-            document.getElementById('dictation-status').innerText = "Couldn't hear you. Try typing instead.";
-            setTimeout(() => document.getElementById('dictation-status').style.display = 'none', 3000);
-        }
     }
 
     function startSnip() {
         const audio = document.getElementById('audio-player');
-        if(!audio.src) {
-            alert("Load a podcast first!");
-            return;
-        }
+        if(!audio.src) return alert("Load a podcast first!");
         
         if (recognition) {
             document.getElementById('dictation-status').style.display = 'block';
-            document.getElementById('dictation-status').innerText = "Listening... Speak your thoughts now.";
             recognition.start();
         } else {
-            // Fallback for browsers that don't support speech recognition
-            const timestamp = Math.floor(audio.currentTime);
-            const sourceName = document.getElementById('player-title').innerText;
-            const manualThought = prompt("Speech recognition not supported. Type your note for this timestamp:");
-            if(manualThought) {
-                saveNote(`Audio Clip (${timestamp}s)`, sourceName, manualThought);
-            }
-        }
-    }
-
-    // --- RSS LOGIC ---
-    async function addSource() {
-        const url = document.getElementById('rss-input').value;
-        if(!url) return;
-        const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}`);
-        const data = await res.json();
-        if(data.status === 'ok') {
-            const list = document.getElementById('content-list');
-            data.items.forEach(item => {
-                const card = document.createElement('div');
-                card.className = 'note-card';
-                card.innerHTML = `<div style="font-size:15px; font-weight:600; margin-bottom:5px;">${item.title}</div><small style="color:var(--text-secondary);">${data.feed.title}</small>`;
-                card.onclick = () => {
-                    if(item.enclosure && item.enclosure.type.includes('audio')) {
-                        document.getElementById('audio-player').src = item.enclosure.link;
-                        document.getElementById('player-title').innerText = item.title;
-                        showTab('player');
-                    } else {
-                        alert("Text article reading functionality would open here.");
-                    }
-                };
-                list.appendChild(card);
-            });
-            document.getElementById('rss-input').value = "";
+            const text = prompt("Type your note for this timestamp:");
+            if(text) saveNote(`Audio Clip (${Math.floor(audio.currentTime)}s)`, document.getElementById('player-title').innerText, text);
         }
     }
 
