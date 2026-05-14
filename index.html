@@ -97,8 +97,11 @@
         .modal-content { flex: 1; overflow-y: auto; padding: 20px; padding-bottom: 100px; -webkit-user-select: text; user-select: text; }
         
         #epub-viewer { width: 100%; height: 70vh; background: var(--surface); border-radius: 12px; margin: 10px 0; overflow: hidden; }
-        #article-body, #transcript-container { font-size: 18px; line-height: 1.6; color: var(--text); padding: 15px; background: var(--surface); border-radius: 16px; border: 1px solid var(--border); }
-        #article-body img { max-width: 100%; height: auto; border-radius: 10px; margin: 15px 0; }
+        #article-body, #transcript-container { font-size: 18px; line-height: 1.6; color: var(--text); padding: 15px; background: var(--surface); border-radius: 16px; border: 1px solid var(--border); overflow-wrap: break-word;}
+        
+        /* Ensure embedded article images don't break the layout */
+        #article-body img, #article-body figure, #article-body iframe { max-width: 100%; height: auto; border-radius: 10px; margin: 15px 0; display: block; }
+        
         #pdf-viewer { width: 100%; height: 80vh; border: none; border-radius: 12px; }
 
         /* SRS Buttons */
@@ -361,7 +364,6 @@
         list.innerHTML = "<p style='text-align:center; color:var(--sub); margin-top:20px;'>Updating your feed...</p>";
         
         let allItems = [];
-        // Process in small batches so rss2json doesn't rate-limit us
         const batchSize = 10; 
         
         try {
@@ -373,11 +375,23 @@
                         if (!res.ok) return [];
                         const data = await res.json();
                         if(data.status === 'ok') {
-                            return data.items.map(item => ({
-                                ...item, source: sub.title,
-                                extractedImg: extractImage(item),
-                                type: (item.link.includes('youtube') || (item.enclosure && item.enclosure.type && item.enclosure.type.includes('audio'))) ? 'podcast' : 'article'
-                            }));
+                            return data.items.map(item => {
+                                // Robust podcast logic
+                                let type = 'article';
+                                if (item.link.includes('youtube') || 
+                                    (item.enclosure && item.enclosure.link && 
+                                    (String(item.enclosure.type).includes('audio') || String(item.enclosure.type).includes('video') || item.enclosure.link.match(/\.(mp3|m4a|wav|mp4)/i)))
+                                ) {
+                                    type = 'podcast';
+                                }
+
+                                return {
+                                    ...item, 
+                                    source: sub.title,
+                                    extractedImg: extractImage(item),
+                                    type: type
+                                };
+                            });
                         }
                     } catch (e) { return []; }
                     return [];
@@ -451,7 +465,21 @@
         } 
         else if (item.type === 'article') {
             document.getElementById('modal-article-ui').style.display = 'block';
-            document.getElementById('article-body').innerHTML = item.content || item.description || `<p><a href="${item.link}" target="_blank">View full original post</a></p>`;
+            let contentHtml = item.content || item.description || "<p>No content provided by the feed.</p>";
+            
+            // Inject the thumbnail if the text doesn't already have the image
+            let topImg = item.extractedImg && !contentHtml.includes(item.extractedImg) ? 
+                         `<img src="${item.extractedImg}" style="width:100%; max-height:300px; object-fit:cover; border-radius:12px; margin-bottom:15px;">` : '';
+            
+            document.getElementById('article-body').innerHTML = `
+                ${topImg}
+                ${contentHtml}
+                <div style="margin-top: 30px; text-align: center;">
+                    <button class="glass-card" style="width:100%; color:var(--accent); font-weight:bold; border: 1px solid var(--accent);" onclick="window.open('${item.link}', '_blank')">
+                        Read Original Webpage
+                    </button>
+                </div>
+            `;
         }
     }
 
