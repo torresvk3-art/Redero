@@ -3,488 +3,391 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Omni — Knowledge Hub</title>
+    <title>Recall — Media Hub</title>
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    
-    <!-- Material Symbols & Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/epub.js/0.3.88/epub.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.5/jszip.min.js"></script>
-
     <style>
-        /* Material 3 Expressive Theme */
-        :root {
-            /* Light Theme */
-            --bg: #FAFAFA;
-            --surface: #FFFFFF;
-            --surface-variant: #F4F4F5;
-            --primary: #005AC1;
-            --primary-container: #D8E2FF;
-            --on-primary-container: #001A41;
-            --text-main: #1A1C1E;
-            --text-sec: #73777F;
-            --outline: #C4C6D0;
+        :root { /* Things 3 / Apple Light */
+            --bg: #F2F2F7; --surface: #FFFFFF; --text: #1C1C1E; --sub: #8E8E93; --accent: #007AFF; --border: #E5E5EA;
         }
-
-        body.dark-theme {
-            /* Pure Black AMOLED Theme */
-            --bg: #000000;
-            --surface: #111114;
-            --surface-variant: #1E1F22;
-            --primary: #A8C7FA;
-            --primary-container: #004A77;
-            --on-primary-container: #C2E7FF;
-            --text-main: #E2E2E6;
-            --text-sec: #8C9099;
-            --outline: #44474E;
+        body.theme-black { /* Pure Black AMOLED */
+            --bg: #000000; --surface: #1C1C1E; --text: #FFFFFF; --sub: #8E8E93; --accent: #0A84FF; --border: #38383A;
+        }
+        body.theme-catppuccin { /* Catppuccin Mocha */
+            --bg: #1e1e2e; --surface: #313244; --text: #cdd6f4; --sub: #a6adc8; --accent: #89b4fa; --border: #45475a;
+        }
+        body.theme-gruvbox { /* Gruvbox Dark */
+            --bg: #282828; --surface: #3c3836; --text: #ebdbb2; --sub: #928374; --accent: #fe8019; --border: #504945;
+        }
+        body.theme-solarized { /* Solarized Dark */
+            --bg: #002b36; --surface: #073642; --text: #839496; --sub: #586e75; --accent: #268bd2; --border: #073642;
         }
 
         body {
-            font-family: system-ui, -apple-system, sans-serif;
-            background-color: var(--bg); color: var(--text-main);
-            margin: 0; padding: 0; padding-bottom: 90px;
-            transition: background-color 0.3s, color 0.3s;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+            background-color: var(--bg); color: var(--text); margin: 0; padding-bottom: 100px;
+            transition: all 0.2s ease; -webkit-font-smoothing: antialiased;
         }
 
-        /* Expressive Header */
         header {
-            padding: 50px 20px 10px 20px;
-            background: var(--bg);
-            position: sticky; top: 0; z-index: 10;
-            display: flex; justify-content: space-between; align-items: flex-end;
+            padding: 60px 25px 20px 25px; position: sticky; top: 0; z-index: 10; background: var(--bg);
+            display: flex; justify-content: space-between; align-items: center;
         }
-        header h1 { font-size: 36px; font-weight: 700; margin: 0; letter-spacing: -1px; }
-        .header-actions { display: flex; gap: 10px; }
-        .icon-btn { background: var(--surface-variant); color: var(--text-main); border: none; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        header h1 { font-size: 34px; font-weight: 800; margin: 0; letter-spacing: -0.5px; }
+        .header-btns { display: flex; gap: 12px; }
+        .text-btn { background: none; border: none; color: var(--accent); font-size: 16px; font-weight: 600; cursor: pointer; padding: 0;}
 
-        .container { padding: 0 16px; }
-
-        /* M3 Cards */
+        .container { padding: 0 20px; }
         .card {
-            background: var(--surface);
-            border-radius: 24px;
-            padding: 16px;
-            margin-bottom: 12px;
-            border: 1px solid var(--outline);
+            background: var(--surface); border-radius: 12px; padding: 16px; margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid var(--border);
         }
+        .item-title { font-size: 17px; font-weight: 600; margin-bottom: 4px; display: block; }
+        .item-meta { font-size: 13px; color: var(--sub); display: block; }
 
-        /* Note Items with Thumbnails */
-        .note-item { display: flex; gap: 12px; align-items: flex-start; }
-        .note-thumb { width: 50px; height: 50px; border-radius: 12px; object-fit: cover; background: var(--surface-variant); flex-shrink: 0; }
-        .note-content { flex: 1; }
-        .note-source { font-size: 12px; font-weight: 600; color: var(--primary); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;}
-        .note-text { font-size: 16px; line-height: 1.5; margin-bottom: 8px; }
-        .note-thoughts { font-size: 14px; color: var(--text-sec); font-style: italic; background: var(--surface-variant); padding: 8px 12px; border-radius: 12px; }
-
-        /* Buttons & Inputs */
-        .input-group { background: var(--surface); border: 1px solid var(--outline); border-radius: 30px; padding: 8px 16px; margin-bottom: 16px; display: flex; align-items: center; }
-        input { width: 100%; border: none; outline: none; background: transparent; color: var(--text-main); font-size: 16px; }
-        
-        .btn-primary { background: var(--primary); color: var(--bg); border: none; padding: 16px; border-radius: 30px; width: 100%; font-weight: 600; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 12px; }
-        .btn-tonal { background: var(--primary-container); color: var(--on-primary-container); border: none; padding: 12px 20px; border-radius: 30px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
-
-        /* M3 Pill Navigation */
         nav {
-            position: fixed; bottom: 0; width: 100%;
-            background: var(--surface);
-            display: flex; justify-content: space-around;
+            position: fixed; bottom: 0; width: 100%; background: var(--surface);
+            display: flex; justify-content: space-around; border-top: 1px solid var(--border);
             padding: 12px 0 calc(12px + env(safe-area-inset-bottom));
-            border-top: 1px solid var(--outline);
         }
-        .nav-item { display: flex; flex-direction: column; align-items: center; background: none; border: none; color: var(--text-sec); font-size: 12px; font-weight: 600; padding: 0 16px; gap: 4px; }
-        .nav-item.active { color: var(--text-main); }
-        .nav-item.active .material-symbols-outlined { background: var(--primary-container); color: var(--on-primary-container); padding: 4px 20px; border-radius: 20px; }
+        nav button { background: none; border: none; color: var(--sub); font-size: 11px; font-weight: 500; }
+        nav button.active { color: var(--accent); }
 
-        /* Views */
-        .view { display: none; }
-        .view.active { display: block; animation: fadeIn 0.2s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .search-bar {
+            background: var(--surface); border-radius: 10px; padding: 10px 15px; margin-bottom: 20px;
+            display: flex; align-items: center; border: 1px solid var(--border);
+        }
+        input { background: none; border: none; color: var(--text); width: 100%; outline: none; font-size: 16px; }
 
-        /* SRS Review Overlay */
-        #srs-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 100; padding: 60px 20px 20px 20px; box-sizing: border-box; }
-        .srs-controls { display: flex; gap: 10px; margin-top: 30px; }
-        .srs-controls button { flex: 1; padding: 16px; border-radius: 20px; border: none; font-weight: bold; font-size: 16px; }
-
-        /* Ebook Viewer */
-        #epub-viewer { width: 100%; height: 60vh; background: var(--surface); border-radius: 12px; margin-top: 10px; overflow: hidden;}
+        .view { display: none; } .view.active { display: block; }
+        #epub-viewer { width: 100%; height: 65vh; background: var(--surface); border-radius: 12px; margin: 10px 0; overflow: hidden; }
+        #transcript-container { 
+            margin-top: 20px; font-size: 15px; line-height: 1.6; color: var(--text); 
+            height: 200px; overflow-y: auto; padding: 15px; background: var(--surface); border-radius: 12px;
+        }
     </style>
 </head>
-<body class="dark-theme">
+<body>
 
 <header>
-    <h1 id="view-title">Inbox</h1>
-    <div class="header-actions">
-        <button class="icon-btn" onclick="toggleTheme()"><span class="material-symbols-outlined">dark_mode</span></button>
-        <button class="icon-btn" id="srs-btn" onclick="startReview()" style="background: var(--primary-container); color: var(--on-primary-container);"><span class="material-symbols-outlined">psychology</span></button>
-        <button class="icon-btn" id="export-btn" onclick="exportToObsidian()"><span class="material-symbols-outlined">ios_share</span></button>
+    <h1 id="title">Inbox</h1>
+    <div class="header-btns">
+        <button class="text-btn" onclick="cycleTheme()">Theme</button>
+        <button class="text-btn" id="header-action" onclick="headerAction()">Review</button>
     </div>
 </header>
 
 <div class="container">
-    
-    <!-- 1. FEED VIEW -->
+    <!-- FEED TAB -->
     <div id="view-feed" class="view">
-        <div id="sub-list"></div>
-        <div id="feed-content" style="margin-top: 20px;"></div>
+        <div id="filter-bar" style="margin-bottom:15px; display:flex; gap:15px; overflow-x:auto;">
+            <button class="text-btn" onclick="renderFeed('all')">All</button>
+            <button class="text-btn" onclick="renderFeed('podcast')">Podcasts</button>
+            <button class="text-btn" onclick="renderFeed('article')">Articles</button>
+            <button class="text-btn" onclick="fetchRandomWiki()">+ Wiki</button>
+        </div>
+        <div id="feed-list"></div>
     </div>
 
-    <!-- 2. LIBRARY VIEW -->
+    <!-- LIBRARY TAB -->
     <div id="view-library" class="view">
-        <div class="input-group">
-            <span class="material-symbols-outlined" style="color:var(--text-sec); margin-right:8px;">search</span>
-            <input type="text" id="podcast-search" placeholder="Search Apple Podcasts...">
-            <button onclick="searchPodcasts()" style="background:none; border:none; color:var(--primary); font-weight:bold;">Find</button>
+        <div class="search-bar">
+            <input type="text" id="lib-search" placeholder="Search Reddit, Podcasts, or YT @handle...">
+            <button class="text-btn" onclick="searchLibrary()">Add</button>
         </div>
         <div id="search-results"></div>
-
-        <div style="display:flex; gap:10px; margin-top: 20px;">
-            <input type="file" id="opml-upload" accept=".opml,.xml" style="display:none" onchange="importOPML(event)">
-            <button class="btn-tonal" onclick="document.getElementById('opml-upload').click()" style="flex:1; justify-content:center;">
-                <span class="material-symbols-outlined">folder_zip</span> OPML
-            </button>
-            
-            <input type="file" id="epub-upload" accept=".epub" style="display:none" onchange="loadEbook(event)">
-            <button class="btn-tonal" onclick="document.getElementById('epub-upload').click()" style="flex:1; justify-content:center;">
-                <span class="material-symbols-outlined">menu_book</span> Book
-            </button>
+        
+        <h3 style="margin-top: 30px;">Subscriptions</h3>
+        <div id="sub-list"></div>
+        
+        <div style="margin-top:20px; display:flex; gap:15px; border-top: 1px solid var(--border); padding-top: 15px;">
+            <input type="file" id="opml-in" accept=".opml,.xml" style="display:none" onchange="importOPML(event)">
+            <button class="text-btn" onclick="document.getElementById('opml-in').click()">📁 Import OPML</button>
+            <input type="file" id="epub-in" accept=".epub" style="display:none" onchange="openEbook(event)">
+            <button class="text-btn" onclick="document.getElementById('epub-in').click()">📖 Open Ebook</button>
         </div>
     </div>
 
-    <!-- 3. PLAYER / READ VIEW -->
-    <div id="view-player" class="view">
-        <div class="card" id="audio-container" style="display:none;">
-            <img id="player-img" src="" style="width:100%; height:200px; object-fit:cover; border-radius:16px; margin-bottom:16px; display:none;">
-            <h3 id="player-title" style="margin: 0 0 16px 0;">No Media</h3>
-            <audio id="audio-player" controls style="width:100%"></audio>
-            <button onclick="startSnip()" class="btn-primary" style="margin-top:20px;">
-                <span class="material-symbols-outlined">content_cut</span> Snip & Dictate
-            </button>
-        </div>
+    <!-- INBOX TAB -->
+    <div id="view-inbox" class="view active">
+        <div id="inbox-list"></div>
+    </div>
 
-        <div id="ebook-container" style="display:none;">
-            <h3 id="ebook-title" style="margin: 0;">Ebook Reader</h3>
+    <!-- PLAYER TAB -->
+    <div id="view-player" class="view">
+        <div class="card" id="audio-ui">
+            <h2 id="player-item-title" style="margin-top:0;">Select Media</h2>
+            <audio id="main-audio" controls style="width:100%"></audio>
+            <div id="transcript-container">
+                <p style="color:var(--sub)">Transcript will appear here if available...</p>
+            </div>
+            <button class="text-btn" style="margin-top:15px;" onclick="snipAudio()">✂️ Snip Moment</button>
+        </div>
+        <div id="ebook-ui" style="display:none">
+            <h2 id="ebook-item-title" style="margin-top:0;">Ebook Reader</h2>
             <div id="epub-viewer"></div>
-            <div style="display:flex; gap:10px; margin-top:10px;">
-                <button class="btn-tonal" onclick="rendition.prev()" style="flex:1; justify-content:center;">Prev</button>
-                <button class="btn-tonal" onclick="rendition.next()" style="flex:1; justify-content:center;">Next</button>
+            <div style="display:flex; justify-content: space-between; padding: 10px 0;">
+                <button class="text-btn" onclick="rendition.prev()">← Previous</button>
+                <button class="text-btn" onclick="rendition.next()">Next →</button>
             </div>
         </div>
     </div>
-
-    <!-- 4. INBOX VIEW -->
-    <div id="view-inbox" class="view active">
-        <div id="notes-list"></div>
-    </div>
-
 </div>
 
-<!-- SRS REVIEW OVERLAY -->
-<div id="srs-overlay">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-        <h2 style="margin:0;">Daily Review</h2>
-        <button class="icon-btn" onclick="document.getElementById('srs-overlay').style.display='none'"><span class="material-symbols-outlined">close</span></button>
-    </div>
-    <div id="srs-card-container"></div>
-</div>
-
-<!-- BOTTOM NAV -->
 <nav>
-    <button class="nav-item" onclick="switchTab('feed')" id="btn-feed">
-        <span class="material-symbols-outlined">rss_feed</span>Feed
-    </button>
-    <button class="nav-item" onclick="switchTab('library')" id="btn-library">
-        <span class="material-symbols-outlined">explore</span>Library
-    </button>
-    <button class="nav-item" onclick="switchTab('player')" id="btn-player">
-        <span class="material-symbols-outlined">play_circle</span>Player
-    </button>
-    <button class="nav-item active" onclick="switchTab('inbox')" id="btn-inbox">
-        <span class="material-symbols-outlined">inbox</span>Inbox
-    </button>
+    <button onclick="switchTab('feed')" id="nav-feed">Feed</button>
+    <button onclick="switchTab('library')" id="nav-library">Library</button>
+    <button onclick="switchTab('inbox')" id="nav-inbox" class="active">Inbox</button>
+    <button onclick="switchTab('player')" id="nav-player">Player</button>
 </nav>
 
 <script>
-    let store = JSON.parse(localStorage.getItem('omni_db')) || { notes: [], subscriptions: [] };
+    let db = JSON.parse(localStorage.getItem('recall_v3_db')) || { subs: [], notes: [], feedCache: [] };
+    let themes = ['light', 'black', 'catppuccin', 'gruvbox', 'solarized'];
+    let currentThemeIdx = 0;
     let rendition = null;
-    let currentReviewQueue = [];
 
-    // --- NAVIGATION & THEME ---
+    // --- SYSTEM & NAVIGATION ---
     function switchTab(tab) {
         document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-        document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
         document.getElementById('view-' + tab).classList.add('active');
-        document.getElementById('btn-' + tab).classList.add('active');
+        document.getElementById('nav-' + tab).classList.add('active');
+        document.getElementById('title').innerText = tab.charAt(0).toUpperCase() + tab.slice(1);
         
-        const titles = { feed: "Feed", library: "Library", player: "Player", inbox: "Inbox" };
-        document.getElementById('view-title').innerText = titles[tab];
-        
-        document.getElementById('export-btn').style.display = (tab === 'inbox') ? 'flex' : 'none';
-        document.getElementById('srs-btn').style.display = (tab === 'inbox') ? 'flex' : 'none';
-        
-        if(tab === 'inbox') renderNotes();
-        if(tab === 'feed') renderSubscriptions();
+        if(tab === 'feed') refreshFeed();
+        if(tab === 'inbox') renderInbox();
+        if(tab === 'library') renderLibrary();
     }
 
-    function toggleTheme() {
-        document.body.classList.toggle('dark-theme');
-        localStorage.setItem('theme', document.body.classList.contains('dark-theme') ? 'dark' : 'light');
+    function cycleTheme() {
+        currentThemeIdx = (currentThemeIdx + 1) % themes.length;
+        document.body.className = 'theme-' + themes[currentThemeIdx];
     }
-    if(localStorage.getItem('theme') === 'light') document.body.classList.remove('dark-theme');
 
-    // --- 1. FEED & SUBSCRIPTIONS ---
-    function renderSubscriptions() {
+    function save() { localStorage.setItem('recall_v3_db', JSON.stringify(db)); }
+    function headerAction() { alert("SRS Daily Review coming up next!"); }
+
+    // --- LIBRARY & SEARCH (YT + Reddit + Podcasts) ---
+    function renderLibrary() {
         const list = document.getElementById('sub-list');
-        list.innerHTML = store.subscriptions.length ? '<h3 style="margin-top:0;">Your Sources</h3>' : '<p style="color:var(--text-sec); text-align:center;">Go to Library to add feeds.</p>';
-        
-        store.subscriptions.forEach(sub => {
-            const el = document.createElement('div');
-            el.className = 'card';
-            el.style.display = 'flex'; el.style.alignItems = 'center'; el.style.gap = '12px'; el.style.cursor = 'pointer';
-            el.innerHTML = `
-                ${sub.image ? `<img src="${sub.image}" style="width:40px; height:40px; border-radius:8px; object-fit:cover;">` : `<div style="width:40px; height:40px; border-radius:8px; background:var(--primary-container);"></div>`}
-                <div style="flex:1;"><div style="font-weight:600; font-size:15px;">${sub.title}</div></div>
-                <span class="material-symbols-outlined" style="color:var(--text-sec);">chevron_right</span>
-            `;
-            el.onclick = () => loadFeedItems(sub.url, sub.title, sub.image);
-            list.appendChild(el);
-        });
+        list.innerHTML = db.subs.map((s, i) => `
+            <div class="card" style="display:flex; justify-content:space-between; align-items:center; padding: 12px 16px;">
+                <span style="font-weight: 500;">${s.title}</span>
+                <button class="text-btn" style="color: #FF3B30;" onclick="removeSub(${i})">Delete</button>
+            </div>
+        `).join('');
     }
 
-    async function loadFeedItems(url, title, image) {
-        const content = document.getElementById('feed-content');
-        content.innerHTML = `<p>Loading ${title}...</p>`;
-        try {
-            const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}`);
-            const data = await res.json();
-            if(data.status === 'ok') {
-                content.innerHTML = `<h3 style="margin-top:20px;">Latest Episodes</h3>`;
-                data.items.forEach(item => {
-                    const card = document.createElement('div');
-                    card.className = 'card';
-                    card.innerHTML = `<div style="font-weight:600; margin-bottom:8px;">${item.title}</div>`;
-                    
-                    if(item.enclosure && item.enclosure.type.includes('audio')) {
-                        card.innerHTML += `<button class="btn-tonal"><span class="material-symbols-outlined">play_arrow</span> Play</button>`;
-                        card.onclick = () => {
-                            document.getElementById('audio-player').src = item.enclosure.link;
-                            document.getElementById('player-title').innerText = item.title;
-                            if(image) {
-                                document.getElementById('player-img').src = image;
-                                document.getElementById('player-img').style.display = 'block';
-                            }
-                            document.getElementById('player-img').dataset.feedImg = image || '';
-                            document.getElementById('audio-container').style.display = 'block';
-                            document.getElementById('ebook-container').style.display = 'none';
-                            switchTab('player');
-                        };
-                    } else {
-                        card.innerHTML += `<small style="color:var(--text-sec);">Read Article</small>`;
-                        card.onclick = () => window.open(item.link, '_blank');
-                    }
-                    content.appendChild(card);
-                });
-            }
-        } catch(e) { content.innerHTML = `<p>Error loading feed.</p>`; }
+    function removeSub(i) { db.subs.splice(i, 1); save(); renderLibrary(); }
+
+    function addSubscription(title, url) {
+        if(!db.subs.find(s => s.url === url)) {
+            db.subs.push({ title, url });
+            save(); renderLibrary();
+            document.getElementById('search-results').innerHTML = `<p style="color:var(--accent);">Added ${title}!</p>`;
+        } else {
+            alert("Already subscribed to this feed!");
+        }
     }
 
-    // --- 2. LIBRARY (OPML, Podcasts, Ebooks) ---
-    async function searchPodcasts() {
-        const q = document.getElementById('podcast-search').value;
+    async function searchLibrary() {
+        const q = document.getElementById('lib-search').value.trim();
         const resDiv = document.getElementById('search-results');
+        if(!q) return;
         resDiv.innerHTML = "Searching...";
-        try {
-            const res = await fetch(`https://itunes.apple.com/search?media=podcast&term=${encodeURIComponent(q)}`);
-            const data = await res.json();
-            resDiv.innerHTML = "";
-            data.results.slice(0, 5).forEach(pod => {
-                const card = document.createElement('div'); card.className = 'card';
-                card.style.display = 'flex'; card.style.alignItems = 'center'; card.style.justifyContent = 'space-between';
-                card.innerHTML = `
-                    <div style="display:flex; gap:10px; align-items:center;">
-                        <img src="${pod.artworkUrl100}" style="width:40px; height:40px; border-radius:8px;">
-                        <div><div style="font-weight:600; font-size:14px;">${pod.collectionName}</div></div>
-                    </div>
-                `;
-                const btn = document.createElement('button');
-                btn.className = 'icon-btn'; btn.innerHTML = '<span class="material-symbols-outlined">add</span>';
-                btn.onclick = () => {
-                    store.subscriptions.push({ title: pod.collectionName, url: pod.feedUrl, image: pod.artworkUrl100 });
-                    localStorage.setItem('omni_db', JSON.stringify(store));
-                    alert("Added!");
-                };
-                card.appendChild(btn);
-                resDiv.appendChild(card);
-            });
-        } catch(e) {}
-    }
 
-    function importOPML(e) {
-        const file = e.target.files[0];
-        if(!file) return;
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(event.target.result, "text/xml");
-            const outlines = doc.querySelectorAll('outline');
-            let count = 0;
-            outlines.forEach(node => {
-                // Fix: Check for both camelCase and lowercase xmlUrl
-                const url = node.getAttribute('xmlUrl') || node.getAttribute('xmlurl');
-                if(url) {
-                    const title = node.getAttribute('title') || node.getAttribute('text') || "Feed";
-                    if(!store.subscriptions.find(s => s.url === url)) {
-                        store.subscriptions.push({ title, url, image: '' });
-                        count++;
-                    }
+        // 1. YouTube Search (Handle or URL)
+        if (q.includes("youtube.com") || q.startsWith("@")) {
+            resDiv.innerHTML = "Resolving YouTube Channel...";
+            const urlToFetch = q.startsWith("@") ? `https://www.youtube.com/${q}` : q;
+            try {
+                // Use AllOrigins proxy to scrape the raw HTML of the YouTube channel
+                const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(urlToFetch)}`);
+                const data = await res.json();
+                const html = data.contents;
+                
+                // Regex to find the hidden Channel ID
+                const match = html.match(/channel_id=([a-zA-Z0-9_-]+)/) || html.match(/"channelId":"([a-zA-Z0-9_-]+)"/);
+                if (match && match[1]) {
+                    const titleMatch = html.match(/<title>(.*?) - YouTube<\/title>/);
+                    const title = titleMatch ? titleMatch[1] : "YouTube Channel";
+                    addSubscription(title, `https://www.youtube.com/feeds/videos.xml?channel_id=${match[1]}`);
+                } else {
+                    resDiv.innerHTML = "Could not locate YouTube RSS ID. Try the exact channel URL.";
                 }
-            });
-            localStorage.setItem('omni_db', JSON.stringify(store));
-            alert(`Imported ${count} feeds!`);
-        };
-        reader.readAsText(file);
-    }
-
-    function loadEbook(e) {
-        const file = e.target.files[0];
-        if(!file) return;
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const book = ePub(event.target.result);
-            rendition = book.renderTo("epub-viewer", { width: "100%", height: "100%" });
-            rendition.display();
-            
-            document.getElementById('audio-container').style.display = 'none';
-            document.getElementById('ebook-container').style.display = 'block';
-            
-            book.ready.then(() => {
-                document.getElementById('ebook-title').innerText = book.package.metadata.title;
-            });
-
-            // Highlight Logic
-            rendition.on("selected", (cfiRange, contents) => {
-                book.getRange(cfiRange).then(range => {
-                    saveNote(range.toString(), book.package.metadata.title, "", "https://upload.wikimedia.org/wikipedia/commons/thumb/3/31/EPUB_logo.svg/1200px-EPUB_logo.svg.png");
-                    contents.window.getSelection().removeAllRanges();
-                    alert("Highlight Saved!");
-                });
-            });
-            switchTab('player');
-        };
-        reader.readAsArrayBuffer(file);
-    }
-
-    // --- 3. INBOX & SRS LOGIC ---
-    function saveNote(text, source, thoughts = "", image = "") {
-        store.notes.push({ 
-            id: Date.now(), text, source, thoughts, image,
-            interval: 1, ease: 2.5, nextReview: Date.now() // SRS Data
-        });
-        localStorage.setItem('omni_db', JSON.stringify(store));
-        renderNotes();
-    }
-
-    function renderNotes() {
-        const list = document.getElementById('notes-list');
-        list.innerHTML = store.notes.length ? '' : '<p style="text-align:center; color:var(--text-sec); margin-top:40px;">Inbox empty.</p>';
-        
-        store.notes.sort((a,b) => b.id - a.id).forEach(note => {
-            const el = document.createElement('div'); el.className = 'card note-item';
-            el.innerHTML = `
-                ${note.image ? `<img src="${note.image}" class="note-thumb">` : `<div class="note-thumb"></div>`}
-                <div class="note-content">
-                    <div class="note-source">${note.source}</div>
-                    <div class="note-text">${note.text}</div>
-                    ${note.thoughts ? `<div class="note-thoughts">${note.thoughts}</div>` : ''}
-                </div>
-            `;
-            list.appendChild(el);
-        });
-    }
-
-    // SRS System
-    function startReview() {
-        const now = Date.now();
-        currentReviewQueue = store.notes.filter(n => n.nextReview <= now);
-        
-        if(currentReviewQueue.length === 0) return alert("You are all caught up for today!");
-        
-        document.getElementById('srs-overlay').style.display = 'block';
-        showNextReviewCard();
-    }
-
-    function showNextReviewCard() {
-        const container = document.getElementById('srs-card-container');
-        if(currentReviewQueue.length === 0) {
-            container.innerHTML = `<h3 style="text-align:center; margin-top:50px;">Review Complete! 🎉</h3>`;
-            setTimeout(() => document.getElementById('srs-overlay').style.display='none', 1500);
+            } catch(e) { resDiv.innerHTML = "Failed to fetch YouTube page."; }
             return;
         }
 
-        const note = currentReviewQueue[0];
-        container.innerHTML = `
-            <div class="card" style="padding:30px;">
-                ${note.image ? `<img src="${note.image}" style="width:60px; height:60px; border-radius:12px; margin-bottom:15px;">` : ''}
-                <div style="font-weight:bold; color:var(--primary); margin-bottom:10px;">${note.source}</div>
-                <div style="font-size:20px; line-height:1.4;">${note.text}</div>
-                ${note.thoughts ? `<div style="margin-top:15px; font-style:italic; color:var(--text-sec);">${note.thoughts}</div>` : ''}
-            </div>
-            <p style="text-align:center; margin-top:20px; color:var(--text-sec);">How well did you remember this?</p>
-            <div class="srs-controls">
-                <button style="background:#3F0000; color:#FFB4AB;" onclick="processReview('hard')">Hard</button>
-                <button style="background:#00390A; color:#71F771;" onclick="processReview('good')">Good</button>
-                <button style="background:#004A77; color:#C2E7FF;" onclick="processReview('easy')">Easy</button>
-            </div>
-            <p style="text-align:center; margin-top:20px; color:var(--text-sec); font-size:12px;">${currentReviewQueue.length} remaining</p>
-        `;
-    }
-
-    function processReview(grade) {
-        let note = currentReviewQueue.shift();
-        let itemIndex = store.notes.findIndex(n => n.id === note.id);
-        
-        if (grade === 'hard') { note.interval = 1; note.ease = Math.max(1.3, note.ease - 0.2); }
-        else if (grade === 'good') { note.interval = Math.max(1, Math.round(note.interval * note.ease)); }
-        else if (grade === 'easy') { note.ease += 0.15; note.interval = Math.max(1, Math.round(note.interval * note.ease * 1.3)); }
-        
-        note.nextReview = Date.now() + (note.interval * 24 * 60 * 60 * 1000);
-        store.notes[itemIndex] = note;
-        localStorage.setItem('omni_db', JSON.stringify(store));
-        
-        showNextReviewCard();
-    }
-
-    // --- DICTATION & EXPORT ---
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    let recognition = SpeechRecognition ? new SpeechRecognition() : null;
-    
-    function startSnip() {
-        const audio = document.getElementById('audio-player');
-        if(!audio.src) return;
-        const title = document.getElementById('player-title').innerText;
-        const img = document.getElementById('player-img').dataset.feedImg || '';
-        
-        if(recognition) {
-            recognition.start();
-            recognition.onresult = (e) => {
-                saveNote(`Audio Snip (${Math.floor(audio.currentTime)}s)`, title, e.results[0][0].transcript, img);
-                alert("Saved to Inbox!");
+        // 2. Reddit & Podcast Search
+        try {
+            const [podRes, redditRes] = await Promise.all([
+                fetch(`https://itunes.apple.com/search?media=podcast&term=${encodeURIComponent(q)}`),
+                fetch(`https://www.reddit.com/subreddits/search.json?q=${encodeURIComponent(q)}`)
+            ]);
+            
+            const podData = await podRes.json();
+            const redditData = await redditRes.json();
+            resDiv.innerHTML = "";
+            
+            // Render Reddit Results
+            if (redditData.data && redditData.data.children) {
+                redditData.data.children.slice(0, 3).forEach(child => {
+                    const sub = child.data.display_name_prefixed;
+                    resDiv.innerHTML += `
+                        <div class="card" style="display:flex; justify-content:space-between; align-items:center;">
+                            <div><span class="item-title">${sub}</span><span class="item-meta">Subreddit</span></div>
+                            <button class="text-btn" onclick="addSubscription('${sub}', 'https://www.reddit.com/${sub}/.rss')">+</button>
+                        </div>`;
+                });
             }
+
+            // Render Podcast Results
+            podData.results.slice(0, 3).forEach(pod => {
+                resDiv.innerHTML += `
+                    <div class="card" style="display:flex; justify-content:space-between; align-items:center;">
+                        <div><span class="item-title">${pod.collectionName}</span><span class="item-meta">Podcast</span></div>
+                        <button class="text-btn" onclick="addSubscription('${pod.collectionName.replace(/'/g, "\\'")}', '${pod.feedUrl}')">+</button>
+                    </div>`;
+            });
+            if(resDiv.innerHTML === "") resDiv.innerHTML = "No results found.";
+        } catch(e) { resDiv.innerHTML = "Search failed."; }
+    }
+
+    function importOPML(e) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const parser = new DOMParser();
+            const xml = parser.parseFromString(event.target.result, "text/xml");
+            xml.querySelectorAll('outline').forEach(o => {
+                const url = o.getAttribute('xmlUrl') || o.getAttribute('xmlurl') || o.getAttribute('url');
+                if(url && !db.subs.find(s => s.url === url)) {
+                    db.subs.push({ title: o.getAttribute('title') || o.getAttribute('text') || "Feed", url });
+                }
+            });
+            save(); alert("OPML Imported!"); renderLibrary();
+        };
+        reader.readAsText(e.target.files[0]);
+    }
+
+    // --- EBOOK HANDLING (iOS Files Fix) ---
+    function openEbook(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // Reset viewer container to prevent crashing
+        document.getElementById('epub-viewer').innerHTML = '';
+        document.getElementById('audio-ui').style.display = 'none';
+        document.getElementById('ebook-ui').style.display = 'block';
+        
+        // Pass the raw File object directly to ePub engine
+        const book = ePub(file);
+        rendition = book.renderTo("epub-viewer", { width: "100%", height: "100%" });
+        rendition.display();
+        switchTab('player');
+        
+        book.ready.then(() => {
+            document.getElementById('ebook-item-title').innerText = book.package.metadata.title || "Ebook";
+        }).catch(err => alert("Error reading Ebook file."));
+
+        rendition.on("selected", (cfiRange, contents) => {
+            book.getRange(cfiRange).then(range => {
+                saveNote(range.toString(), book.package.metadata.title || "Ebook");
+                contents.window.getSelection().removeAllRanges();
+            });
+        });
+    }
+
+    // --- FEED AGGREGATION ---
+    async function refreshFeed() {
+        const list = document.getElementById('feed-list');
+        list.innerHTML = "<p style='text-align:center; color:var(--sub);'>Compiling your feed...</p>";
+        
+        const fetchPromises = db.subs.map(async (sub) => {
+            try {
+                const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(sub.url)}`);
+                const data = await res.json();
+                if(data.status === 'ok') {
+                    return data.items.map(item => ({
+                        ...item, source: sub.title,
+                        type: (item.link.includes('youtube') || (item.enclosure && item.enclosure.type && item.enclosure.type.includes('audio'))) ? 'podcast' : 'article'
+                    }));
+                }
+            } catch (e) { return []; }
+        });
+
+        const results = await Promise.all(fetchPromises);
+        db.feedCache = results.flat().sort((a,b) => new Date(b.pubDate) - new Date(a.pubDate));
+        renderFeed('all');
+    }
+
+    function renderFeed(filter) {
+        const list = document.getElementById('feed-list');
+        const items = filter === 'all' ? db.feedCache : db.feedCache.filter(i => i.type === filter);
+        
+        list.innerHTML = items.map(item => `
+            <div class="card" onclick='openMedia(${JSON.stringify(item).replace(/'/g, "&apos;")})'>
+                <span class="item-meta">${item.source} • ${new Date(item.pubDate).toLocaleDateString()}</span>
+                <span class="item-title">${item.title}</span>
+            </div>
+        `).join('');
+    }
+
+    async function fetchRandomWiki() {
+        try {
+            const res = await fetch('https://en.wikipedia.org/api/rest_v1/page/random/summary');
+            const data = await res.json();
+            const item = { title: data.title, link: data.content_urls.desktop.page, source: 'Wikipedia', pubDate: new Date(), type: 'article' };
+            db.feedCache.unshift(item);
+            renderFeed('all');
+        } catch(e) { alert("Wiki error"); }
+    }
+
+    function openMedia(item) {
+        if(item.type === 'podcast') {
+            document.getElementById('audio-ui').style.display = 'block';
+            document.getElementById('ebook-ui').style.display = 'none';
+            // Determine if it's YouTube or standard Podcast
+            document.getElementById('main-audio').src = item.enclosure ? item.enclosure.link : '';
+            document.getElementById('player-item-title').innerText = item.title;
+            // Clean up Transcript HTML
+            let content = item.content || item.description || "No transcript provided.";
+            document.getElementById('transcript-container').innerHTML = content;
+            switchTab('player');
         } else {
-            const text = prompt("Type note:");
-            if(text) saveNote(`Audio Snip (${Math.floor(audio.currentTime)}s)`, title, text, img);
+            window.open(item.link, '_blank');
         }
     }
 
-    function exportToObsidian() {
-        if (!store.notes.length) return;
-        let md = `# Export\n\n`;
-        store.notes.forEach(n => { md += `### ${n.source}\n> ${n.text}\n\n${n.thoughts||''}\n---\n`; });
-        window.location.href = `obsidian://new?name=Export_${Date.now()}&content=${encodeURIComponent(md)}`;
+    // --- INBOX & NOTES ---
+    function saveNote(text, source) {
+        db.notes.push({ text, source, date: new Date().toISOString(), id: Date.now() });
+        save(); alert("Saved to Inbox!");
     }
 
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+    function renderInbox() {
+        const list = document.getElementById('inbox-list');
+        list.innerHTML = db.notes.length ? db.notes.sort((a,b) => b.id - a.id).map(n => `
+            <div class="card">
+                <span class="item-meta">${n.source}</span>
+                <span class="item-title" style="font-size:16px;">${n.text}</span>
+            </div>
+        `).join('') : '<p style="text-align:center; color:var(--sub); margin-top: 40px;">Inbox empty.</p>';
+    }
+
+    function snipAudio() {
+        const audio = document.getElementById('main-audio');
+        if(!audio.src) return;
+        const time = Math.floor(audio.currentTime);
+        const thought = prompt("Enter your thought for this moment:");
+        if(thought) saveNote(`[${time}s] ${thought}`, document.getElementById('player-item-title').innerText);
+    }
+
+    // Auto-init
     switchTab('inbox');
 </script>
 </body>
