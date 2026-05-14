@@ -54,12 +54,12 @@
             backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
             border: 1px solid color-mix(in srgb, var(--text) 10%, transparent);
             border-radius: 20px; padding: 20px; margin-bottom: 16px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.05); cursor: pointer; transition: transform 0.1s;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.05); transition: transform 0.1s;
         }
-        .glass-card:active { transform: scale(0.98); }
         .item-title { font-size: 19px; font-weight: 700; margin-bottom: 8px; display: block; line-height: 1.3; }
         .item-meta { font-size: 13px; color: var(--sub); display: block; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 6px;}
         .feed-img { width: 100%; max-height: 250px; object-fit: cover; border-radius: 12px; margin-top: 12px; border: 1px solid var(--border); }
+        .inbox-img { width: 60px; height: 60px; object-fit: cover; border-radius: 10px; float: right; margin-left: 10px; border: 1px solid var(--border); }
 
         /* --- NAVIGATION --- */
         nav {
@@ -80,16 +80,15 @@
         input { background: none; border: none; color: var(--text); width: 100%; outline: none; font-size: 16px; padding: 10px 0; }
         .text-btn { background: none; border: none; color: var(--accent); font-size: 16px; font-weight: 600; cursor: pointer; padding:0;}
 
-        /* --- VIEWS --- */
         .view { display: none; } .view.active { display: block; }
 
-        /* --- MODAL READER / PLAYER --- */
-        #media-modal {
+        /* --- MODALS (Reader & SRS) --- */
+        .fullscreen-modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100dvh;
             background: var(--bg); z-index: 1000; display: none; flex-direction: column;
             transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
-        #media-modal.open { transform: translateY(0); }
+        .fullscreen-modal.open { transform: translateY(0); }
         .modal-header {
             padding: max(20px, env(safe-area-inset-top)) 20px 15px 20px;
             background: var(--surface); border-bottom: 1px solid var(--border);
@@ -100,14 +99,21 @@
         #epub-viewer { width: 100%; height: 70vh; background: var(--surface); border-radius: 12px; margin: 10px 0; overflow: hidden; }
         #article-body, #transcript-container { font-size: 18px; line-height: 1.6; color: var(--text); padding: 15px; background: var(--surface); border-radius: 16px; border: 1px solid var(--border); }
         #article-body img { max-width: 100%; height: auto; border-radius: 10px; margin: 15px 0; }
-        
         #pdf-viewer { width: 100%; height: 80vh; border: none; border-radius: 12px; }
 
-        /* Floating Highlight Button */
+        /* SRS Buttons */
+        .srs-btns { display: flex; gap: 10px; margin-top: 20px; }
+        .srs-btns button { flex: 1; padding: 15px; border-radius: 12px; border: none; font-weight: bold; font-size: 16px; color: white; }
+
         #floating-highlight {
             display: none; position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
             background: var(--accent); color: white; padding: 14px 28px; border-radius: 30px;
             font-weight: 700; font-size: 16px; border: none; box-shadow: 0 8px 24px rgba(0,0,0,0.3); z-index: 1002;
+        }
+
+        .user-note {
+            margin-top: 12px; padding: 12px; background: color-mix(in srgb, var(--bg) 50%, transparent);
+            border-radius: 10px; border-left: 3px solid var(--accent); font-size: 15px; color: var(--text);
         }
     </style>
 </head>
@@ -117,7 +123,7 @@
     <h1 id="title">Inbox</h1>
     <div class="header-btns">
         <button class="icon-btn" onclick="cycleTheme()"><span class="material-symbols-outlined">dark_mode</span></button>
-        <button class="icon-btn" onclick="headerAction()"><span class="material-symbols-outlined">psychology</span></button>
+        <button class="icon-btn" onclick="startSRS()"><span class="material-symbols-outlined">psychology</span></button>
     </div>
 </header>
 
@@ -139,9 +145,9 @@
             <select id="search-type">
                 <option value="podcast">Podcasts</option>
                 <option value="reddit">Reddit</option>
-                <option value="youtube">YouTube (Paste Link)</option>
+                <option value="youtube">YouTube</option>
             </select>
-            <input type="text" id="lib-search" placeholder="Search or paste channel URL...">
+            <input type="text" id="lib-search" placeholder="Search or paste YT channel...">
             <button class="text-btn" onclick="searchExplore()">Find</button>
         </div>
         <div id="search-results"></div>
@@ -150,7 +156,6 @@
         <div id="sub-list"></div>
         
         <div style="margin-top:20px; display:flex; flex-direction:column; gap:15px; border-top: 1px solid var(--border); padding-top: 20px;">
-            <!-- Removed 'accept' attribute so iOS Files app won't block OPML -->
             <input type="file" id="opml-in" style="display:none" onchange="importOPML(event)">
             <button class="glass-card" style="margin:0; padding:15px; text-align:left;" onclick="document.getElementById('opml-in').click()">
                 <span style="font-weight:700; color:var(--accent);">📁 Import OPML Backup</span>
@@ -169,55 +174,45 @@
     </div>
 </div>
 
-<!-- MODAL READER OVERLAY -->
-<div id="media-modal">
+<!-- MEDIA READER OVERLAY -->
+<div id="media-modal" class="fullscreen-modal" data-current-img="">
     <div class="modal-header">
         <h3 id="modal-title" style="margin:0; font-size: 18px; max-width: 70%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Reader</h3>
-        <button class="icon-btn" onclick="closeModal()"><span class="material-symbols-outlined">close</span></button>
+        <button class="icon-btn" onclick="closeModal('media-modal')"><span class="material-symbols-outlined">close</span></button>
     </div>
     <div class="modal-content" id="modal-body">
-        
-        <!-- Audio Section -->
         <div id="modal-audio-ui" style="display:none;">
             <audio id="main-audio" controls style="width:100%; margin-bottom:15px;"></audio>
             <button class="text-btn" style="width:100%; background:var(--accent); color:white; padding:12px; border-radius:12px; margin-bottom:15px;" onclick="snipAudio()">✂️ Snip Moment to Inbox</button>
-            <h4 style="margin-top:20px;">Notes / Transcript</h4>
+            <h4 style="margin-top:20px;">Transcript</h4>
             <div id="transcript-container"></div>
         </div>
-
-        <!-- Article Section -->
-        <div id="modal-article-ui" style="display:none;">
-            <div id="article-body"></div>
-        </div>
-
-        <!-- Ebook Section -->
+        <div id="modal-article-ui" style="display:none;"><div id="article-body"></div></div>
         <div id="modal-ebook-ui" style="display:none;">
             <div id="epub-viewer"></div>
             <div style="display:flex; justify-content: space-between; padding: 15px 0;">
-                <button class="text-btn" onclick="rendition.prev()">← Prev Page</button>
-                <button class="text-btn" onclick="rendition.next()">Next Page →</button>
+                <button class="text-btn" onclick="rendition.prev()">← Prev</button>
+                <button class="text-btn" onclick="rendition.next()">Next →</button>
             </div>
         </div>
-
-        <!-- PDF Section -->
-        <div id="modal-pdf-ui" style="display:none;">
-            <iframe id="pdf-viewer"></iframe>
-        </div>
-
+        <div id="modal-pdf-ui" style="display:none;"><iframe id="pdf-viewer"></iframe></div>
     </div>
     <button id="floating-highlight" onmousedown="saveSelectedText(event)">📝 Save Highlight</button>
 </div>
 
+<!-- SRS REVIEW OVERLAY -->
+<div id="srs-modal" class="fullscreen-modal">
+    <div class="modal-header">
+        <h3 style="margin:0; font-size: 18px;">Daily Review</h3>
+        <button class="icon-btn" onclick="closeModal('srs-modal')"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <div class="modal-content" id="srs-body"></div>
+</div>
+
 <nav>
-    <button onclick="switchTab('feed')" id="nav-feed">
-        <span class="material-symbols-outlined">rss_feed</span>Feed
-    </button>
-    <button onclick="switchTab('explore')" id="nav-explore">
-        <span class="material-symbols-outlined">explore</span>Explore
-    </button>
-    <button onclick="switchTab('inbox')" id="nav-inbox" class="active">
-        <span class="material-symbols-outlined">inbox</span>Inbox
-    </button>
+    <button onclick="switchTab('feed')" id="nav-feed"><span class="material-symbols-outlined">rss_feed</span>Feed</button>
+    <button onclick="switchTab('explore')" id="nav-explore"><span class="material-symbols-outlined">explore</span>Explore</button>
+    <button onclick="switchTab('inbox')" id="nav-inbox" class="active"><span class="material-symbols-outlined">inbox</span>Inbox</button>
 </nav>
 
 <script>
@@ -225,13 +220,13 @@
     let themes = ['light', 'black', 'catppuccin', 'gruvbox', 'solarized'];
     let currentThemeIdx = 0;
     let rendition = null;
+    let srsQueue = [];
 
     if (localStorage.getItem('saved_theme')) {
         document.documentElement.className = 'theme-' + localStorage.getItem('saved_theme');
         currentThemeIdx = themes.indexOf(localStorage.getItem('saved_theme'));
     }
 
-    // --- NAVIGATION ---
     function switchTab(tab) {
         document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
         document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
@@ -253,9 +248,8 @@
     }
 
     function save() { localStorage.setItem('recall_v3_db', JSON.stringify(db)); }
-    function headerAction() { alert("SRS Space Repetition Review starting soon..."); }
 
-    // --- EXPLORE & NATIVE SEARCH ---
+    // --- EXPLORE & SEARCH LOGIC ---
     function renderLibrary() {
         const list = document.getElementById('sub-list');
         list.innerHTML = db.subs.map((s, i) => `
@@ -284,9 +278,9 @@
 
         try {
             resDiv.innerHTML = "";
+            const proxyBase = "https://api.allorigins.win/get?url=";
             
             if (type === 'podcast') {
-                // Direct Apple API
                 const res = await fetch(`https://itunes.apple.com/search?media=podcast&term=${encodeURIComponent(q)}`);
                 const data = await res.json();
                 data.results.slice(0, 5).forEach(pod => {
@@ -298,10 +292,9 @@
                 });
             } 
             else if (type === 'reddit') {
-                // Proxy to bypass Reddit CORS
-                const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://www.reddit.com/subreddits/search.json?q=${q}`)}`;
-                const res = await fetch(proxyUrl);
-                const data = await res.json();
+                const res = await fetch(proxyBase + encodeURIComponent(`https://www.reddit.com/subreddits/search.json?q=${encodeURIComponent(q)}`));
+                const jsonRaw = await res.json();
+                const data = JSON.parse(jsonRaw.contents);
                 if (data.data && data.data.children) {
                     data.data.children.slice(0, 5).forEach(child => {
                         const sub = child.data.display_name_prefixed;
@@ -316,13 +309,11 @@
             else if (type === 'youtube') {
                 resDiv.innerHTML = "Resolving YouTube Channel...";
                 const urlToFetch = q.startsWith("@") ? `https://www.youtube.com/${q}` : q;
+                const res = await fetch(proxyBase + encodeURIComponent(urlToFetch));
+                const jsonRaw = await res.json();
+                const html = jsonRaw.contents;
                 
-                // Proxy to bypass Google HTML CORS
-                const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(urlToFetch)}`;
-                const res = await fetch(proxyUrl);
-                const html = await res.text();
-                
-                const match = html.match(/channel_id=([a-zA-Z0-9_-]+)/) || html.match(/"channelId":"([a-zA-Z0-9_-]+)"/);
+                const match = html.match(/"externalId":"(UC[^"]+)"/) || html.match(/channel_id=([a-zA-Z0-9_-]+)/);
                 if (match && match[1]) {
                     const titleMatch = html.match(/<title>(.*?) - YouTube<\/title>/);
                     const title = titleMatch ? titleMatch[1].replace(' - YouTube', '') : "YouTube Channel";
@@ -332,15 +323,13 @@
                             <button class="text-btn" onclick="addSubscription('${title.replace(/'/g, "\\'")}', 'https://www.youtube.com/feeds/videos.xml?channel_id=${match[1]}')">Add</button>
                         </div>`;
                 } else {
-                    resDiv.innerHTML = "Could not locate YouTube ID. Ensure you enter the exact channel URL or @handle.";
+                    resDiv.innerHTML = "Could not locate YouTube ID. Paste exact channel URL.";
                 }
             }
             if(resDiv.innerHTML === "") resDiv.innerHTML = "No results found.";
-        } catch(e) { 
-            console.error(e);
-            resDiv.innerHTML = "Search failed. Please check your connection or try a different term."; 
-        }
+        } catch(e) { resDiv.innerHTML = "Search failed. Check connection."; }
     }
+
     function importOPML(e) {
         const file = e.target.files[0];
         if(!file) return;
@@ -359,7 +348,7 @@
         reader.readAsText(file);
     }
 
-    // --- LIQUID GLASS FEED ---
+    // --- RATE-LIMITED FEED AGGREGATION ---
     function extractImage(item) {
         if (item.thumbnail) return item.thumbnail;
         if (item.enclosure && item.enclosure.type && item.enclosure.type.startsWith('image')) return item.enclosure.link;
@@ -371,23 +360,38 @@
         const list = document.getElementById('feed-list');
         list.innerHTML = "<p style='text-align:center; color:var(--sub); margin-top:20px;'>Updating your feed...</p>";
         
-        const fetchPromises = db.subs.map(async (sub) => {
-            try {
-                const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(sub.url)}`);
-                const data = await res.json();
-                if(data.status === 'ok') {
-                    return data.items.map(item => ({
-                        ...item, source: sub.title,
-                        extractedImg: extractImage(item),
-                        type: (item.link.includes('youtube') || (item.enclosure && item.enclosure.type && item.enclosure.type.includes('audio'))) ? 'podcast' : 'article'
-                    }));
-                }
-            } catch (e) { return []; }
-        });
-
-        const results = await Promise.all(fetchPromises);
-        db.feedCache = results.flat().sort((a,b) => new Date(b.pubDate) - new Date(a.pubDate));
-        renderFeed('all');
+        let allItems = [];
+        // Process in small batches so rss2json doesn't rate-limit us
+        const batchSize = 10; 
+        
+        try {
+            for (let i = 0; i < db.subs.length; i += batchSize) {
+                const batch = db.subs.slice(i, i + batchSize);
+                const fetchPromises = batch.map(async (sub) => {
+                    try {
+                        const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(sub.url.trim())}`);
+                        if (!res.ok) return [];
+                        const data = await res.json();
+                        if(data.status === 'ok') {
+                            return data.items.map(item => ({
+                                ...item, source: sub.title,
+                                extractedImg: extractImage(item),
+                                type: (item.link.includes('youtube') || (item.enclosure && item.enclosure.type && item.enclosure.type.includes('audio'))) ? 'podcast' : 'article'
+                            }));
+                        }
+                    } catch (e) { return []; }
+                    return [];
+                });
+                
+                const results = await Promise.all(fetchPromises);
+                allItems.push(...results.flat());
+            }
+            db.feedCache = allItems.sort((a,b) => new Date(b.pubDate) - new Date(a.pubDate));
+            renderFeed('all');
+        } catch (e) {
+            list.innerHTML = "<p style='text-align:center;'>Error loading feeds.</p>";
+            if(db.feedCache.length > 0) renderFeed('all');
+        }
     }
 
     function renderFeed(filter) {
@@ -397,7 +401,7 @@
         list.innerHTML = items.map(item => {
             const dateStr = new Date(item.pubDate).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
             return `
-            <div class="glass-card" onclick='openModal(${JSON.stringify(item).replace(/'/g, "&apos;")})'>
+            <div class="glass-card" onclick='openMediaModal(${JSON.stringify(item).replace(/'/g, "&apos;")})'>
                 <span class="item-meta">${item.source} • ${dateStr}</span>
                 <span class="item-title">${item.title}</span>
                 ${item.extractedImg ? `<img src="${item.extractedImg}" class="feed-img">` : ''}
@@ -412,27 +416,29 @@
             const item = { 
                 title: data.title, link: data.content_urls.desktop.page, 
                 source: 'Wikipedia', pubDate: new Date().toISOString(), type: 'article',
-                content: data.extract_html 
+                content: data.extract_html, extractedImg: data.thumbnail ? data.thumbnail.source : null
             };
             db.feedCache.unshift(item);
             renderFeed('all');
         } catch(e) { alert("Wiki connection error."); }
     }
 
-    // --- MODAL READER LOGIC ---
-    const modal = document.getElementById('media-modal');
-    
-    function closeModal() {
-        modal.classList.remove('open');
-        document.getElementById('main-audio').pause();
-        setTimeout(() => { modal.style.display = 'none'; }, 300);
+    // --- MODALS ---
+    function closeModal(id) {
+        const m = document.getElementById(id);
+        m.classList.remove('open');
+        if(id === 'media-modal') document.getElementById('main-audio').pause();
+        setTimeout(() => { m.style.display = 'none'; }, 300);
     }
 
-    function openModal(item) {
+    function openMediaModal(item) {
+        const modal = document.getElementById('media-modal');
         modal.style.display = 'flex';
-        setTimeout(() => modal.classList.add('open'), 10); // Animate slide up
+        setTimeout(() => modal.classList.add('open'), 10);
         
         document.getElementById('modal-title').innerText = item.title;
+        modal.dataset.currentImg = item.extractedImg || ''; // Store for highlight saving
+
         document.getElementById('modal-audio-ui').style.display = 'none';
         document.getElementById('modal-article-ui').style.display = 'none';
         document.getElementById('modal-ebook-ui').style.display = 'none';
@@ -449,14 +455,15 @@
         }
     }
 
-    // --- FILES (EBOOK & PDF) ---
     function openLocalFile(e) {
         const file = e.target.files[0];
         if (!file) return;
 
+        const modal = document.getElementById('media-modal');
         modal.style.display = 'flex';
         setTimeout(() => modal.classList.add('open'), 10);
         document.getElementById('modal-title').innerText = file.name;
+        modal.dataset.currentImg = "";
         
         document.getElementById('modal-audio-ui').style.display = 'none';
         document.getElementById('modal-article-ui').style.display = 'none';
@@ -467,7 +474,6 @@
             document.getElementById('modal-pdf-ui').style.display = 'block';
             document.getElementById('pdf-viewer').src = URL.createObjectURL(file);
         } else {
-            // Assume Ebook
             document.getElementById('modal-ebook-ui').style.display = 'block';
             document.getElementById('epub-viewer').innerHTML = ''; 
             const book = ePub(file);
@@ -476,32 +482,35 @@
         }
     }
 
-    // --- HIGHLIGHTING INTERCEPTOR ---
+    // --- INBOX & HIGHLIGHTING ---
     document.addEventListener('selectionchange', () => {
         const text = window.getSelection().toString().trim();
         const btn = document.getElementById('floating-highlight');
-        
-        // Show if text is selected inside the modal
-        if (text.length > 0 && modal.classList.contains('open')) {
+        if (text.length > 0 && document.getElementById('media-modal').classList.contains('open')) {
             btn.style.display = 'block';
         } else {
             btn.style.display = 'none';
         }
     });
 
-    // onmousedown prevents Safari clearing selection on button press
     function saveSelectedText(event) {
         event.preventDefault(); 
         const text = window.getSelection().toString().trim();
         if(text) {
-            saveNote(text, document.getElementById('modal-title').innerText);
+            const source = document.getElementById('modal-title').innerText;
+            const img = document.getElementById('media-modal').dataset.currentImg;
+            saveNote(text, source, img);
             window.getSelection().removeAllRanges();
             document.getElementById('floating-highlight').style.display = 'none';
         }
     }
 
-    function saveNote(text, source) {
-        db.notes.push({ text, source, date: new Date().toISOString(), id: Date.now() });
+    function saveNote(text, source, img = "") {
+        db.notes.push({ 
+            id: Date.now(), text, source, img, thoughts: "", 
+            date: new Date().toISOString(), reviewCount: 0, 
+            interval: 1, ease: 2.5, nextReview: Date.now() 
+        });
         save(); alert("Saved to Inbox!"); renderInbox();
     }
 
@@ -509,10 +518,25 @@
         const list = document.getElementById('inbox-list');
         list.innerHTML = db.notes.length ? db.notes.sort((a,b) => b.id - a.id).map(n => `
             <div class="glass-card" style="cursor:default;">
+                ${n.img ? `<img src="${n.img}" class="inbox-img">` : ''}
                 <span class="item-meta">${n.source}</span>
                 <span class="item-title" style="font-size:16px;">${n.text}</span>
+                <div class="user-note" onclick="editThought(${n.id})">
+                    ${n.thoughts ? `<strong>📝 Notes:</strong><br>${n.thoughts}` : `<span style="color:var(--sub)">📝 Tap to add notes...</span>`}
+                </div>
+                <div style="font-size:12px; color:var(--sub); margin-top:10px;">
+                    <span class="material-symbols-outlined" style="font-size:14px; vertical-align:middle;">psychology</span> Seen: ${n.reviewCount || 0} times
+                </div>
             </div>
         `).join('') : '<p style="text-align:center; color:var(--sub); margin-top: 40px;">Inbox empty.</p>';
+    }
+
+    function editThought(id) {
+        const note = db.notes.find(n => n.id === id);
+        const newThoughts = prompt("Add or edit your thoughts:", note.thoughts || "");
+        if (newThoughts !== null) {
+            note.thoughts = newThoughts; save(); renderInbox();
+        }
     }
 
     function snipAudio() {
@@ -520,7 +544,61 @@
         if(!audio.src) return;
         const time = Math.floor(audio.currentTime);
         const thought = prompt("Enter your note for this moment:");
-        if(thought) saveNote(`[${time}s] ${thought}`, document.getElementById('modal-title').innerText);
+        if(thought) saveNote(`[${time}s] ${thought}`, document.getElementById('modal-title').innerText, document.getElementById('media-modal').dataset.currentImg);
+    }
+
+    // --- SRS ENGINE ---
+    function startSRS() {
+        const now = Date.now();
+        srsQueue = db.notes.filter(n => n.nextReview <= now);
+        
+        if(srsQueue.length === 0) return alert("You are all caught up for today!");
+        
+        const modal = document.getElementById('srs-modal');
+        modal.style.display = 'flex';
+        setTimeout(() => modal.classList.add('open'), 10);
+        showNextSRS();
+    }
+
+    function showNextSRS() {
+        const body = document.getElementById('srs-body');
+        if(srsQueue.length === 0) {
+            body.innerHTML = `<h3 style="text-align:center; margin-top:50px;">Review Complete! 🎉</h3>`;
+            setTimeout(() => closeModal('srs-modal'), 1500);
+            renderInbox(); // Update counts
+            return;
+        }
+
+        const note = srsQueue[0];
+        body.innerHTML = `
+            <div class="glass-card">
+                ${note.img ? `<img src="${note.img}" class="inbox-img" style="width:80px; height:80px;">` : ''}
+                <span class="item-meta" style="color:var(--accent);">${note.source}</span>
+                <span class="item-title" style="font-size:18px;">${note.text}</span>
+                ${note.thoughts ? `<div class="user-note">${note.thoughts}</div>` : ''}
+            </div>
+            <p style="text-align:center; margin-top:20px; color:var(--sub);">How well did you remember this?</p>
+            <div class="srs-btns">
+                <button style="background:#FF3B30;" onclick="processSRS('hard')">Hard</button>
+                <button style="background:#34C759;" onclick="processSRS('good')">Good</button>
+                <button style="background:#007AFF;" onclick="processSRS('easy')">Easy</button>
+            </div>
+            <p style="text-align:center; margin-top:20px; color:var(--sub); font-size:13px;">${srsQueue.length} remaining</p>
+        `;
+    }
+
+    function processSRS(grade) {
+        let note = srsQueue.shift();
+        let idx = db.notes.findIndex(n => n.id === note.id);
+        
+        if (grade === 'hard') { note.interval = 1; note.ease = Math.max(1.3, note.ease - 0.2); }
+        else if (grade === 'good') { note.interval = Math.max(1, Math.round(note.interval * note.ease)); }
+        else if (grade === 'easy') { note.ease += 0.15; note.interval = Math.max(1, Math.round(note.interval * note.ease * 1.3)); }
+        
+        note.nextReview = Date.now() + (note.interval * 24 * 60 * 60 * 1000);
+        note.reviewCount = (note.reviewCount || 0) + 1;
+        
+        db.notes[idx] = note; save(); showNextSRS();
     }
 
     switchTab('inbox');
