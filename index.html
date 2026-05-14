@@ -3,396 +3,489 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Inbox — Recall</title>
+    <title>Omni — Knowledge Hub</title>
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <!-- Material Symbols & Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/epub.js/0.3.88/epub.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.5/jszip.min.js"></script>
+
     <style>
-        /* Light Theme (Default) */
+        /* Material 3 Expressive Theme */
         :root {
-            --things-blue: #2196F3;
-            --bg-main: #F2F2F7;
-            --card-bg: #FFFFFF;
-            --text-main: #1C1C1E;
-            --text-secondary: #8E8E93;
-            --border-color: #E5E5EA;
-            --nav-bg: rgba(255, 255, 255, 0.85);
+            /* Light Theme */
+            --bg: #FAFAFA;
+            --surface: #FFFFFF;
+            --surface-variant: #F4F4F5;
+            --primary: #005AC1;
+            --primary-container: #D8E2FF;
+            --on-primary-container: #001A41;
+            --text-main: #1A1C1E;
+            --text-sec: #73777F;
+            --outline: #C4C6D0;
         }
 
-        /* Pure Black Dark Theme */
         body.dark-theme {
-            --things-blue: #0A84FF;
-            --bg-main: #000000;
-            --card-bg: #1C1C1E;
-            --text-main: #FFFFFF;
-            --text-secondary: #98989D;
-            --border-color: #38383A;
-            --nav-bg: rgba(0, 0, 0, 0.85);
+            /* Pure Black AMOLED Theme */
+            --bg: #000000;
+            --surface: #111114;
+            --surface-variant: #1E1F22;
+            --primary: #A8C7FA;
+            --primary-container: #004A77;
+            --on-primary-container: #C2E7FF;
+            --text-main: #E2E2E6;
+            --text-sec: #8C9099;
+            --outline: #44474E;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: var(--bg-main);
-            color: var(--text-main);
-            margin: 0;
-            padding: 0;
-            -webkit-font-smoothing: antialiased;
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--bg); color: var(--text-main);
+            margin: 0; padding: 0; padding-bottom: 90px;
             transition: background-color 0.3s, color 0.3s;
         }
 
+        /* Expressive Header */
         header {
-            padding: 60px 20px 20px 25px;
-            background: var(--bg-main);
-            position: sticky;
-            top: 0;
-            z-index: 10;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
+            padding: 50px 20px 10px 20px;
+            background: var(--bg);
+            position: sticky; top: 0; z-index: 10;
+            display: flex; justify-content: space-between; align-items: flex-end;
         }
+        header h1 { font-size: 36px; font-weight: 700; margin: 0; letter-spacing: -1px; }
+        .header-actions { display: flex; gap: 10px; }
+        .icon-btn { background: var(--surface-variant); color: var(--text-main); border: none; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; }
 
-        header h1 { font-size: 34px; font-weight: 800; margin: 0; letter-spacing: -0.5px; }
-        
-        .header-btns { display: flex; gap: 15px; }
-        .icon-btn { color: var(--things-blue); font-size: 17px; font-weight: 500; background: none; border: none; padding: 0; margin-bottom: 4px; cursor: pointer; }
+        .container { padding: 0 16px; }
 
-        .container { padding: 0 15px 100px 15px; }
-
+        /* M3 Cards */
         .card {
-            background: var(--card-bg);
-            border-radius: 12px;
+            background: var(--surface);
+            border-radius: 24px;
             padding: 16px;
             margin-bottom: 12px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            border: 1px solid var(--outline);
         }
 
-        .note-source { font-size: 12px; font-weight: 600; color: var(--things-blue); text-transform: uppercase; margin-bottom: 8px; }
-        .note-text { font-size: 17px; line-height: 1.4; margin-bottom: 10px; border-left: 3px solid var(--border-color); padding-left: 10px;}
-        .note-thoughts { font-size: 15px; color: var(--text-main); border-top: 1px solid var(--border-color); padding-top: 10px; }
+        /* Note Items with Thumbnails */
+        .note-item { display: flex; gap: 12px; align-items: flex-start; }
+        .note-thumb { width: 50px; height: 50px; border-radius: 12px; object-fit: cover; background: var(--surface-variant); flex-shrink: 0; }
+        .note-content { flex: 1; }
+        .note-source { font-size: 12px; font-weight: 600; color: var(--primary); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;}
+        .note-text { font-size: 16px; line-height: 1.5; margin-bottom: 8px; }
+        .note-thoughts { font-size: 14px; color: var(--text-sec); font-style: italic; background: var(--surface-variant); padding: 8px 12px; border-radius: 12px; }
 
-        .input-group { background: var(--card-bg); border-radius: 12px; padding: 10px; margin-bottom: 12px; display: flex; align-items: center;}
-        input { width: 100%; border: none; outline: none; font-size: 17px; padding: 8px; background: transparent; color: var(--text-main); }
+        /* Buttons & Inputs */
+        .input-group { background: var(--surface); border: 1px solid var(--outline); border-radius: 30px; padding: 8px 16px; margin-bottom: 16px; display: flex; align-items: center; }
+        input { width: 100%; border: none; outline: none; background: transparent; color: var(--text-main); font-size: 16px; }
         
-        /* Action Buttons */
-        .btn-primary { background: var(--things-blue); color: white; border: none; padding: 12px; border-radius: 10px; width: 100%; font-weight: 600; font-size: 16px; cursor: pointer; margin-bottom: 10px;}
-        .btn-secondary { background: var(--card-bg); color: var(--text-main); border: 1px solid var(--border-color); padding: 12px; border-radius: 10px; width: 100%; font-weight: 600; font-size: 16px; cursor: pointer; margin-bottom: 20px;}
+        .btn-primary { background: var(--primary); color: var(--bg); border: none; padding: 16px; border-radius: 30px; width: 100%; font-weight: 600; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 12px; }
+        .btn-tonal { background: var(--primary-container); color: var(--on-primary-container); border: none; padding: 12px 20px; border-radius: 30px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
 
-        /* Subscription List */
-        .sub-item { padding: 12px 0; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;}
-        .sub-item:last-child { border-bottom: none; }
-        .sub-item h4 { margin: 0 0 4px 0; font-size: 16px;}
-        .sub-item p { margin: 0; font-size: 13px; color: var(--text-secondary);}
-
+        /* M3 Pill Navigation */
         nav {
             position: fixed; bottom: 0; width: 100%;
-            background: var(--nav-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            background: var(--surface);
             display: flex; justify-content: space-around;
-            padding: 10px 0 calc(10px + env(safe-area-inset-bottom));
-            border-top: 0.5px solid var(--border-color);
+            padding: 12px 0 calc(12px + env(safe-area-inset-bottom));
+            border-top: 1px solid var(--outline);
         }
-        nav button { background: none; border: none; color: var(--text-secondary); font-size: 11px; font-weight: 500; }
-        nav button.active { color: var(--things-blue); }
+        .nav-item { display: flex; flex-direction: column; align-items: center; background: none; border: none; color: var(--text-sec); font-size: 12px; font-weight: 600; padding: 0 16px; gap: 4px; }
+        .nav-item.active { color: var(--text-main); }
+        .nav-item.active .material-symbols-outlined { background: var(--primary-container); color: var(--on-primary-container); padding: 4px 20px; border-radius: 20px; }
 
-        #magic-btn { position: fixed; right: 25px; bottom: 100px; width: 56px; height: 56px; background: var(--things-blue); border-radius: 50%; color: white; font-size: 30px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); border: none; z-index: 20; display: flex; align-items: center; justify-content: center;}
-
+        /* Views */
         .view { display: none; }
-        .view.active { display: block; }
+        .view.active { display: block; animation: fadeIn 0.2s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* SRS Review Overlay */
+        #srs-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 100; padding: 60px 20px 20px 20px; box-sizing: border-box; }
+        .srs-controls { display: flex; gap: 10px; margin-top: 30px; }
+        .srs-controls button { flex: 1; padding: 16px; border-radius: 20px; border: none; font-weight: bold; font-size: 16px; }
+
+        /* Ebook Viewer */
+        #epub-viewer { width: 100%; height: 60vh; background: var(--surface); border-radius: 12px; margin-top: 10px; overflow: hidden;}
     </style>
 </head>
-<body>
+<body class="dark-theme">
 
 <header>
     <h1 id="view-title">Inbox</h1>
-    <div class="header-btns">
-        <button class="icon-btn" onclick="toggleTheme()">◑ Theme</button>
-        <button class="icon-btn" id="export-btn" onclick="exportToObsidian()">Export</button>
+    <div class="header-actions">
+        <button class="icon-btn" onclick="toggleTheme()"><span class="material-symbols-outlined">dark_mode</span></button>
+        <button class="icon-btn" id="srs-btn" onclick="startReview()" style="background: var(--primary-container); color: var(--on-primary-container);"><span class="material-symbols-outlined">psychology</span></button>
+        <button class="icon-btn" id="export-btn" onclick="exportToObsidian()"><span class="material-symbols-outlined">ios_share</span></button>
     </div>
 </header>
 
 <div class="container">
-    <!-- INBOX VIEW -->
+    
+    <!-- 1. FEED VIEW -->
+    <div id="view-feed" class="view">
+        <div id="sub-list"></div>
+        <div id="feed-content" style="margin-top: 20px;"></div>
+    </div>
+
+    <!-- 2. LIBRARY VIEW -->
+    <div id="view-library" class="view">
+        <div class="input-group">
+            <span class="material-symbols-outlined" style="color:var(--text-sec); margin-right:8px;">search</span>
+            <input type="text" id="podcast-search" placeholder="Search Apple Podcasts...">
+            <button onclick="searchPodcasts()" style="background:none; border:none; color:var(--primary); font-weight:bold;">Find</button>
+        </div>
+        <div id="search-results"></div>
+
+        <div style="display:flex; gap:10px; margin-top: 20px;">
+            <input type="file" id="opml-upload" accept=".opml,.xml" style="display:none" onchange="importOPML(event)">
+            <button class="btn-tonal" onclick="document.getElementById('opml-upload').click()" style="flex:1; justify-content:center;">
+                <span class="material-symbols-outlined">folder_zip</span> OPML
+            </button>
+            
+            <input type="file" id="epub-upload" accept=".epub" style="display:none" onchange="loadEbook(event)">
+            <button class="btn-tonal" onclick="document.getElementById('epub-upload').click()" style="flex:1; justify-content:center;">
+                <span class="material-symbols-outlined">menu_book</span> Book
+            </button>
+        </div>
+    </div>
+
+    <!-- 3. PLAYER / READ VIEW -->
+    <div id="view-player" class="view">
+        <div class="card" id="audio-container" style="display:none;">
+            <img id="player-img" src="" style="width:100%; height:200px; object-fit:cover; border-radius:16px; margin-bottom:16px; display:none;">
+            <h3 id="player-title" style="margin: 0 0 16px 0;">No Media</h3>
+            <audio id="audio-player" controls style="width:100%"></audio>
+            <button onclick="startSnip()" class="btn-primary" style="margin-top:20px;">
+                <span class="material-symbols-outlined">content_cut</span> Snip & Dictate
+            </button>
+        </div>
+
+        <div id="ebook-container" style="display:none;">
+            <h3 id="ebook-title" style="margin: 0;">Ebook Reader</h3>
+            <div id="epub-viewer"></div>
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <button class="btn-tonal" onclick="rendition.prev()" style="flex:1; justify-content:center;">Prev</button>
+                <button class="btn-tonal" onclick="rendition.next()" style="flex:1; justify-content:center;">Next</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. INBOX VIEW -->
     <div id="view-inbox" class="view active">
         <div id="notes-list"></div>
     </div>
 
-    <!-- READ VIEW (Subscriptions & Search) -->
-    <div id="view-read" class="view">
-        
-        <!-- Add Tools -->
-        <div style="margin-bottom: 30px;">
-            <div class="input-group">
-                <input type="text" id="podcast-search" placeholder="Search Apple Podcasts...">
-                <button onclick="searchApplePodcasts()" class="icon-btn" style="padding: 0 10px;">Search</button>
-            </div>
-            
-            <input type="file" id="opml-upload" accept=".opml,.xml" style="display:none" onchange="importOPML(event)">
-            <button class="btn-secondary" onclick="document.getElementById('opml-upload').click()">📁 Import OPML File</button>
-            
-            <div id="search-results"></div>
-        </div>
-
-        <h3 style="margin-top: 0;">My Subscriptions</h3>
-        <div class="card" id="subscription-list">
-            <!-- Subscriptions load here -->
-        </div>
-        
-        <!-- Area to read a specific feed -->
-        <div id="feed-content" style="margin-top: 20px;"></div>
-    </div>
-
-    <!-- PLAYER VIEW -->
-    <div id="view-player" class="view">
-        <div class="card">
-            <h3 id="player-title" style="margin-top: 0;">No Media Loaded</h3>
-            <audio id="audio-player" controls style="width:100%"></audio>
-            <div id="dictation-status" style="color:var(--things-blue); font-size:12px; font-weight:bold; display:none; text-align:center; margin-top:10px;">Listening... Speak now.</div>
-            <button onclick="startSnip()" class="btn-primary" style="margin-top:15px;">✂️ Snip & Dictate</button>
-        </div>
-    </div>
 </div>
 
-<button id="magic-btn" onclick="addNewManualNote()">+</button>
+<!-- SRS REVIEW OVERLAY -->
+<div id="srs-overlay">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <h2 style="margin:0;">Daily Review</h2>
+        <button class="icon-btn" onclick="document.getElementById('srs-overlay').style.display='none'"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <div id="srs-card-container"></div>
+</div>
 
+<!-- BOTTOM NAV -->
 <nav>
-    <button onclick="showTab('inbox')" id="btn-inbox" class="active">Inbox</button>
-    <button onclick="showTab('read')" id="btn-read">Read / Search</button>
-    <button onclick="showTab('player')" id="btn-player">Player</button>
+    <button class="nav-item" onclick="switchTab('feed')" id="btn-feed">
+        <span class="material-symbols-outlined">rss_feed</span>Feed
+    </button>
+    <button class="nav-item" onclick="switchTab('library')" id="btn-library">
+        <span class="material-symbols-outlined">explore</span>Library
+    </button>
+    <button class="nav-item" onclick="switchTab('player')" id="btn-player">
+        <span class="material-symbols-outlined">play_circle</span>Player
+    </button>
+    <button class="nav-item active" onclick="switchTab('inbox')" id="btn-inbox">
+        <span class="material-symbols-outlined">inbox</span>Inbox
+    </button>
 </nav>
 
 <script>
-    let store = JSON.parse(localStorage.getItem('things_recall_db')) || { notes: [], subscriptions: [] };
+    let store = JSON.parse(localStorage.getItem('omni_db')) || { notes: [], subscriptions: [] };
+    let rendition = null;
+    let currentReviewQueue = [];
 
-    // --- THEME LOGIC ---
-    if(localStorage.getItem('theme') === 'dark') {
-        document.body.classList.add('dark-theme');
+    // --- NAVIGATION & THEME ---
+    function switchTab(tab) {
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+        document.getElementById('view-' + tab).classList.add('active');
+        document.getElementById('btn-' + tab).classList.add('active');
+        
+        const titles = { feed: "Feed", library: "Library", player: "Player", inbox: "Inbox" };
+        document.getElementById('view-title').innerText = titles[tab];
+        
+        document.getElementById('export-btn').style.display = (tab === 'inbox') ? 'flex' : 'none';
+        document.getElementById('srs-btn').style.display = (tab === 'inbox') ? 'flex' : 'none';
+        
+        if(tab === 'inbox') renderNotes();
+        if(tab === 'feed') renderSubscriptions();
     }
 
     function toggleTheme() {
         document.body.classList.toggle('dark-theme');
         localStorage.setItem('theme', document.body.classList.contains('dark-theme') ? 'dark' : 'light');
     }
+    if(localStorage.getItem('theme') === 'light') document.body.classList.remove('dark-theme');
 
-    // --- NAVIGATION ---
-    function showTab(tab) {
-        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-        document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
-        document.getElementById('view-' + tab).classList.add('active');
-        document.getElementById('btn-' + tab).classList.add('active');
+    // --- 1. FEED & SUBSCRIPTIONS ---
+    function renderSubscriptions() {
+        const list = document.getElementById('sub-list');
+        list.innerHTML = store.subscriptions.length ? '<h3 style="margin-top:0;">Your Sources</h3>' : '<p style="color:var(--text-sec); text-align:center;">Go to Library to add feeds.</p>';
         
-        let title = "Inbox";
-        if (tab === 'read') title = "Library";
-        if (tab === 'player') title = "Player";
-        document.getElementById('view-title').innerText = title;
-        
-        document.getElementById('export-btn').style.display = (tab === 'inbox') ? 'block' : 'none';
-        
-        if(tab === 'inbox') renderNotes();
-        if(tab === 'read') renderSubscriptions();
-    }
-
-    // --- INBOX LOGIC ---
-    function renderNotes() {
-        const list = document.getElementById('notes-list');
-        list.innerHTML = store.notes.length ? '' : '<p style="color:var(--text-secondary); text-align:center; margin-top:40px;">Your inbox is empty.</p>';
-        
-        store.notes.sort((a,b) => b.id - a.id).forEach(note => {
+        store.subscriptions.forEach(sub => {
             const el = document.createElement('div');
             el.className = 'card';
+            el.style.display = 'flex'; el.style.alignItems = 'center'; el.style.gap = '12px'; el.style.cursor = 'pointer';
             el.innerHTML = `
-                <div class="note-source">${note.source}</div>
-                <div class="note-text" onclick="editThoughts(${note.id})">${note.text}</div>
-                ${note.thoughts ? `<div class="note-thoughts" onclick="editThoughts(${note.id})"><strong>Note:</strong> ${note.thoughts}</div>` : ''}
+                ${sub.image ? `<img src="${sub.image}" style="width:40px; height:40px; border-radius:8px; object-fit:cover;">` : `<div style="width:40px; height:40px; border-radius:8px; background:var(--primary-container);"></div>`}
+                <div style="flex:1;"><div style="font-weight:600; font-size:15px;">${sub.title}</div></div>
+                <span class="material-symbols-outlined" style="color:var(--text-sec);">chevron_right</span>
+            `;
+            el.onclick = () => loadFeedItems(sub.url, sub.title, sub.image);
+            list.appendChild(el);
+        });
+    }
+
+    async function loadFeedItems(url, title, image) {
+        const content = document.getElementById('feed-content');
+        content.innerHTML = `<p>Loading ${title}...</p>`;
+        try {
+            const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}`);
+            const data = await res.json();
+            if(data.status === 'ok') {
+                content.innerHTML = `<h3 style="margin-top:20px;">Latest Episodes</h3>`;
+                data.items.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.innerHTML = `<div style="font-weight:600; margin-bottom:8px;">${item.title}</div>`;
+                    
+                    if(item.enclosure && item.enclosure.type.includes('audio')) {
+                        card.innerHTML += `<button class="btn-tonal"><span class="material-symbols-outlined">play_arrow</span> Play</button>`;
+                        card.onclick = () => {
+                            document.getElementById('audio-player').src = item.enclosure.link;
+                            document.getElementById('player-title').innerText = item.title;
+                            if(image) {
+                                document.getElementById('player-img').src = image;
+                                document.getElementById('player-img').style.display = 'block';
+                            }
+                            document.getElementById('player-img').dataset.feedImg = image || '';
+                            document.getElementById('audio-container').style.display = 'block';
+                            document.getElementById('ebook-container').style.display = 'none';
+                            switchTab('player');
+                        };
+                    } else {
+                        card.innerHTML += `<small style="color:var(--text-sec);">Read Article</small>`;
+                        card.onclick = () => window.open(item.link, '_blank');
+                    }
+                    content.appendChild(card);
+                });
+            }
+        } catch(e) { content.innerHTML = `<p>Error loading feed.</p>`; }
+    }
+
+    // --- 2. LIBRARY (OPML, Podcasts, Ebooks) ---
+    async function searchPodcasts() {
+        const q = document.getElementById('podcast-search').value;
+        const resDiv = document.getElementById('search-results');
+        resDiv.innerHTML = "Searching...";
+        try {
+            const res = await fetch(`https://itunes.apple.com/search?media=podcast&term=${encodeURIComponent(q)}`);
+            const data = await res.json();
+            resDiv.innerHTML = "";
+            data.results.slice(0, 5).forEach(pod => {
+                const card = document.createElement('div'); card.className = 'card';
+                card.style.display = 'flex'; card.style.alignItems = 'center'; card.style.justifyContent = 'space-between';
+                card.innerHTML = `
+                    <div style="display:flex; gap:10px; align-items:center;">
+                        <img src="${pod.artworkUrl100}" style="width:40px; height:40px; border-radius:8px;">
+                        <div><div style="font-weight:600; font-size:14px;">${pod.collectionName}</div></div>
+                    </div>
+                `;
+                const btn = document.createElement('button');
+                btn.className = 'icon-btn'; btn.innerHTML = '<span class="material-symbols-outlined">add</span>';
+                btn.onclick = () => {
+                    store.subscriptions.push({ title: pod.collectionName, url: pod.feedUrl, image: pod.artworkUrl100 });
+                    localStorage.setItem('omni_db', JSON.stringify(store));
+                    alert("Added!");
+                };
+                card.appendChild(btn);
+                resDiv.appendChild(card);
+            });
+        } catch(e) {}
+    }
+
+    function importOPML(e) {
+        const file = e.target.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(event.target.result, "text/xml");
+            const outlines = doc.querySelectorAll('outline');
+            let count = 0;
+            outlines.forEach(node => {
+                // Fix: Check for both camelCase and lowercase xmlUrl
+                const url = node.getAttribute('xmlUrl') || node.getAttribute('xmlurl');
+                if(url) {
+                    const title = node.getAttribute('title') || node.getAttribute('text') || "Feed";
+                    if(!store.subscriptions.find(s => s.url === url)) {
+                        store.subscriptions.push({ title, url, image: '' });
+                        count++;
+                    }
+                }
+            });
+            localStorage.setItem('omni_db', JSON.stringify(store));
+            alert(`Imported ${count} feeds!`);
+        };
+        reader.readAsText(file);
+    }
+
+    function loadEbook(e) {
+        const file = e.target.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const book = ePub(event.target.result);
+            rendition = book.renderTo("epub-viewer", { width: "100%", height: "100%" });
+            rendition.display();
+            
+            document.getElementById('audio-container').style.display = 'none';
+            document.getElementById('ebook-container').style.display = 'block';
+            
+            book.ready.then(() => {
+                document.getElementById('ebook-title').innerText = book.package.metadata.title;
+            });
+
+            // Highlight Logic
+            rendition.on("selected", (cfiRange, contents) => {
+                book.getRange(cfiRange).then(range => {
+                    saveNote(range.toString(), book.package.metadata.title, "", "https://upload.wikimedia.org/wikipedia/commons/thumb/3/31/EPUB_logo.svg/1200px-EPUB_logo.svg.png");
+                    contents.window.getSelection().removeAllRanges();
+                    alert("Highlight Saved!");
+                });
+            });
+            switchTab('player');
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    // --- 3. INBOX & SRS LOGIC ---
+    function saveNote(text, source, thoughts = "", image = "") {
+        store.notes.push({ 
+            id: Date.now(), text, source, thoughts, image,
+            interval: 1, ease: 2.5, nextReview: Date.now() // SRS Data
+        });
+        localStorage.setItem('omni_db', JSON.stringify(store));
+        renderNotes();
+    }
+
+    function renderNotes() {
+        const list = document.getElementById('notes-list');
+        list.innerHTML = store.notes.length ? '' : '<p style="text-align:center; color:var(--text-sec); margin-top:40px;">Inbox empty.</p>';
+        
+        store.notes.sort((a,b) => b.id - a.id).forEach(note => {
+            const el = document.createElement('div'); el.className = 'card note-item';
+            el.innerHTML = `
+                ${note.image ? `<img src="${note.image}" class="note-thumb">` : `<div class="note-thumb"></div>`}
+                <div class="note-content">
+                    <div class="note-source">${note.source}</div>
+                    <div class="note-text">${note.text}</div>
+                    ${note.thoughts ? `<div class="note-thoughts">${note.thoughts}</div>` : ''}
+                </div>
             `;
             list.appendChild(el);
         });
     }
 
-    function saveNote(text, source, thoughts = "") {
-        store.notes.push({ id: Date.now(), text, source, thoughts });
-        localStorage.setItem('things_recall_db', JSON.stringify(store));
-        renderNotes();
+    // SRS System
+    function startReview() {
+        const now = Date.now();
+        currentReviewQueue = store.notes.filter(n => n.nextReview <= now);
+        
+        if(currentReviewQueue.length === 0) return alert("You are all caught up for today!");
+        
+        document.getElementById('srs-overlay').style.display = 'block';
+        showNextReviewCard();
     }
 
-    function addNewManualNote() {
-        const text = prompt("Quick Note:");
-        if (text) saveNote(text, "Manual Entry");
+    function showNextReviewCard() {
+        const container = document.getElementById('srs-card-container');
+        if(currentReviewQueue.length === 0) {
+            container.innerHTML = `<h3 style="text-align:center; margin-top:50px;">Review Complete! 🎉</h3>`;
+            setTimeout(() => document.getElementById('srs-overlay').style.display='none', 1500);
+            return;
+        }
+
+        const note = currentReviewQueue[0];
+        container.innerHTML = `
+            <div class="card" style="padding:30px;">
+                ${note.image ? `<img src="${note.image}" style="width:60px; height:60px; border-radius:12px; margin-bottom:15px;">` : ''}
+                <div style="font-weight:bold; color:var(--primary); margin-bottom:10px;">${note.source}</div>
+                <div style="font-size:20px; line-height:1.4;">${note.text}</div>
+                ${note.thoughts ? `<div style="margin-top:15px; font-style:italic; color:var(--text-sec);">${note.thoughts}</div>` : ''}
+            </div>
+            <p style="text-align:center; margin-top:20px; color:var(--text-sec);">How well did you remember this?</p>
+            <div class="srs-controls">
+                <button style="background:#3F0000; color:#FFB4AB;" onclick="processReview('hard')">Hard</button>
+                <button style="background:#00390A; color:#71F771;" onclick="processReview('good')">Good</button>
+                <button style="background:#004A77; color:#C2E7FF;" onclick="processReview('easy')">Easy</button>
+            </div>
+            <p style="text-align:center; margin-top:20px; color:var(--text-sec); font-size:12px;">${currentReviewQueue.length} remaining</p>
+        `;
     }
 
-    function editThoughts(id) {
-        const note = store.notes.find(n => n.id === id);
-        const newThoughts = prompt("Add or edit your thoughts:", note.thoughts || "");
-        if (newThoughts !== null) {
-            note.thoughts = newThoughts;
-            localStorage.setItem('things_recall_db', JSON.stringify(store));
-            renderNotes();
+    function processReview(grade) {
+        let note = currentReviewQueue.shift();
+        let itemIndex = store.notes.findIndex(n => n.id === note.id);
+        
+        if (grade === 'hard') { note.interval = 1; note.ease = Math.max(1.3, note.ease - 0.2); }
+        else if (grade === 'good') { note.interval = Math.max(1, Math.round(note.interval * note.ease)); }
+        else if (grade === 'easy') { note.ease += 0.15; note.interval = Math.max(1, Math.round(note.interval * note.ease * 1.3)); }
+        
+        note.nextReview = Date.now() + (note.interval * 24 * 60 * 60 * 1000);
+        store.notes[itemIndex] = note;
+        localStorage.setItem('omni_db', JSON.stringify(store));
+        
+        showNextReviewCard();
+    }
+
+    // --- DICTATION & EXPORT ---
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition = SpeechRecognition ? new SpeechRecognition() : null;
+    
+    function startSnip() {
+        const audio = document.getElementById('audio-player');
+        if(!audio.src) return;
+        const title = document.getElementById('player-title').innerText;
+        const img = document.getElementById('player-img').dataset.feedImg || '';
+        
+        if(recognition) {
+            recognition.start();
+            recognition.onresult = (e) => {
+                saveNote(`Audio Snip (${Math.floor(audio.currentTime)}s)`, title, e.results[0][0].transcript, img);
+                alert("Saved to Inbox!");
+            }
+        } else {
+            const text = prompt("Type note:");
+            if(text) saveNote(`Audio Snip (${Math.floor(audio.currentTime)}s)`, title, text, img);
         }
     }
 
     function exportToObsidian() {
-        if (store.notes.length === 0) return alert("Nothing to export!");
-        let markdown = `# Inbox Processing - ${new Date().toISOString().split('T')[0]}\n\n`;
-        store.notes.forEach(note => {
-            markdown += `### ${note.source}\n> ${note.text}\n\n${note.thoughts ? note.thoughts + '\n\n' : ''}---\n\n`;
-        });
-        window.location.href = `obsidian://new?name=Inbox_${Date.now()}&content=${encodeURIComponent(markdown)}`;
-        setTimeout(() => {
-            if(confirm("Clear Inbox after export?")) {
-                store.notes = [];
-                localStorage.setItem('things_recall_db', JSON.stringify(store));
-                renderNotes();
-            }
-        }, 1000);
+        if (!store.notes.length) return;
+        let md = `# Export\n\n`;
+        store.notes.forEach(n => { md += `### ${n.source}\n> ${n.text}\n\n${n.thoughts||''}\n---\n`; });
+        window.location.href = `obsidian://new?name=Export_${Date.now()}&content=${encodeURIComponent(md)}`;
     }
 
-    // --- SUBSCRIPTIONS & OPML ---
-    function renderSubscriptions() {
-        const list = document.getElementById('subscription-list');
-        list.innerHTML = store.subscriptions.length ? '' : '<p style="color:var(--text-secondary); font-size:14px;">No subscriptions yet.</p>';
-        
-        store.subscriptions.forEach((sub, index) => {
-            const div = document.createElement('div');
-            div.className = 'sub-item';
-            div.innerHTML = `<div><h4>${sub.title}</h4><p>RSS / Podcast</p></div>`;
-            div.onclick = () => loadFeed(sub.url, sub.title);
-            list.appendChild(div);
-        });
-    }
-
-    function addSubscription(title, url) {
-        if(!store.subscriptions.find(s => s.url === url)) {
-            store.subscriptions.push({ title, url });
-            localStorage.setItem('things_recall_db', JSON.stringify(store));
-            renderSubscriptions();
-            alert(`Added: ${title}`);
-        }
-    }
-
-    function importOPML(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(e.target.result, "text/xml");
-            const outlines = doc.querySelectorAll('outline[xmlUrl]');
-            let count = 0;
-            outlines.forEach(node => {
-                const title = node.getAttribute('title') || node.getAttribute('text') || "Unknown Feed";
-                const url = node.getAttribute('xmlUrl');
-                if(url && !store.subscriptions.find(s => s.url === url)) {
-                    store.subscriptions.push({ title, url });
-                    count++;
-                }
-            });
-            localStorage.setItem('things_recall_db', JSON.stringify(store));
-            renderSubscriptions();
-            alert(`Successfully imported ${count} feeds!`);
-        };
-        reader.readAsText(file);
-    }
-
-    // --- PODCAST SEARCH (iTunes API) ---
-    async function searchApplePodcasts() {
-        const query = document.getElementById('podcast-search').value;
-        if(!query) return;
-        
-        const resultsDiv = document.getElementById('search-results');
-        resultsDiv.innerHTML = "<p>Searching...</p>";
-        
-        try {
-            const res = await fetch(`https://itunes.apple.com/search?media=podcast&term=${encodeURIComponent(query)}`);
-            const data = await res.json();
-            
-            resultsDiv.innerHTML = "";
-            if(data.results.length === 0) return resultsDiv.innerHTML = "<p>No podcasts found.</p>";
-
-            data.results.slice(0, 5).forEach(pod => {
-                const card = document.createElement('div');
-                card.className = 'card';
-                card.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <div style="display:flex; align-items:center; gap:10px;">
-                            <img src="${pod.artworkUrl100}" style="width:50px; height:50px; border-radius:8px;">
-                            <div>
-                                <strong style="font-size:14px;">${pod.collectionName}</strong><br>
-                                <small style="color:var(--text-secondary)">${pod.artistName}</small>
-                            </div>
-                        </div>
-                        <button class="icon-btn" style="font-size:24px;" onclick="addSubscription('${pod.collectionName.replace(/'/g, "\\'")}', '${pod.feedUrl}')">+</button>
-                    </div>
-                `;
-                resultsDiv.appendChild(card);
-            });
-        } catch (e) {
-            resultsDiv.innerHTML = "<p>Error searching. Try again.</p>";
-        }
-    }
-
-    // --- FETCHING FEED CONTENT ---
-    async function loadFeed(url, title) {
-        const contentDiv = document.getElementById('feed-content');
-        contentDiv.innerHTML = `<p style="text-align:center;">Loading ${title}...</p>`;
-        
-        try {
-            const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}`);
-            const data = await res.json();
-            
-            if(data.status === 'ok') {
-                contentDiv.innerHTML = `<h3 style="border-bottom: 1px solid var(--border-color); padding-bottom:10px;">${title} Episodes/Posts</h3>`;
-                data.items.forEach(item => {
-                    const card = document.createElement('div');
-                    card.className = 'card';
-                    card.innerHTML = `<div style="font-size:15px; font-weight:600; margin-bottom:5px;">${item.title}</div>`;
-                    
-                    if(item.enclosure && item.enclosure.type.includes('audio')) {
-                        card.innerHTML += `<button class="btn-primary" style="padding:8px; margin-top:10px; width:auto;">▶ Play Audio</button>`;
-                        card.onclick = () => {
-                            document.getElementById('audio-player').src = item.enclosure.link;
-                            document.getElementById('player-title').innerText = item.title;
-                            showTab('player');
-                        };
-                    } else {
-                        card.innerHTML += `<small style="color:var(--text-secondary)">Text Article</small>`;
-                        card.onclick = () => window.open(item.link, '_blank');
-                    }
-                    contentDiv.appendChild(card);
-                });
-            } else {
-                contentDiv.innerHTML = `<p>Error loading feed.</p>`;
-            }
-        } catch(e) {
-            contentDiv.innerHTML = `<p>Error loading feed.</p>`;
-        }
-    }
-
-    // --- DICTATION ---
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    let recognition = SpeechRecognition ? new SpeechRecognition() : null;
-    if (recognition) {
-        recognition.onresult = (event) => {
-            const transcript = event.results[0][0].transcript;
-            const audio = document.getElementById('audio-player');
-            saveNote(`Audio Clip (${Math.floor(audio.currentTime)}s)`, document.getElementById('player-title').innerText, transcript);
-            document.getElementById('dictation-status').style.display = 'none';
-            alert("Saved to Inbox!");
-        };
-    }
-
-    function startSnip() {
-        const audio = document.getElementById('audio-player');
-        if(!audio.src) return alert("Load a podcast first!");
-        
-        if (recognition) {
-            document.getElementById('dictation-status').style.display = 'block';
-            recognition.start();
-        } else {
-            const text = prompt("Type your note for this timestamp:");
-            if(text) saveNote(`Audio Clip (${Math.floor(audio.currentTime)}s)`, document.getElementById('player-title').innerText, text);
-        }
-    }
-
-    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js'); }
-    renderNotes();
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+    switchTab('inbox');
 </script>
 </body>
 </html>
