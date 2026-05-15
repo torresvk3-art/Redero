@@ -115,6 +115,8 @@
             margin-top: 12px; padding: 12px; background: color-mix(in srgb, var(--bg) 50%, transparent);
             border-radius: 10px; border-left: 3px solid var(--accent); font-size: 15px; color: var(--text);
         }
+        
+        #sync-indicator { text-align:center; color:var(--sub); font-size:13px; padding-bottom:10px; display:none; }
     </style>
 </head>
 <body>
@@ -131,10 +133,11 @@
     <!-- FEED TAB -->
     <div id="view-feed" class="view">
         <div id="filter-bar" style="margin-bottom:15px; display:flex; gap:15px; overflow-x:auto; padding-bottom:10px;">
-            <button class="text-btn" onclick="renderFeed('all')">All</button>
-            <button class="text-btn" onclick="renderFeed('podcast')">Podcasts</button>
-            <button class="text-btn" onclick="renderFeed('article')">Articles</button>
+            <button class="text-btn" onclick="filterFeed('all')">All</button>
+            <button class="text-btn" onclick="filterFeed('podcast')">Podcasts</button>
+            <button class="text-btn" onclick="filterFeed('article')">Articles</button>
         </div>
+        <div id="sync-indicator">↻ Syncing latest posts...</div>
         <div id="feed-list"></div>
     </div>
 
@@ -220,6 +223,11 @@
     let currentThemeIdx = 0;
     let rendition = null;
     let srsQueue = [];
+    
+    // Pagination Variables
+    let activeFeedFilter = 'all';
+    const ITEMS_PER_PAGE = 15;
+    let displayLimit = ITEMS_PER_PAGE;
 
     if (localStorage.getItem('saved_theme')) {
         document.documentElement.className = 'theme-' + localStorage.getItem('saved_theme');
@@ -248,6 +256,7 @@
 
     function save() { localStorage.setItem('recall_v3_db', JSON.stringify(db)); }
 
+    // --- EXPLORE & SEARCH LOGIC ---
     function renderLibrary() {
         const list = document.getElementById('sub-list');
         list.innerHTML = db.subs.map((s, i) => `
@@ -346,7 +355,7 @@
         reader.readAsText(file);
     }
 
-    // --- LOCAL XML PARSER (BYPASSES RATE LIMITS) ---
+    // --- STREAMING FEED AGGREGATION & PAGINATION ---
     async function fetchRandomWiki() {
         try {
             const res = await fetch('https://en.wikipedia.org/api/rest_v1/page/random/summary');
@@ -360,17 +369,27 @@
     }
 
     async function refreshFeed() {
-        const list = document.getElementById('feed-list');
-        list.innerHTML = "<p style='text-align:center; color:var(--sub); margin-top:20px;'>Syncing feeds directly...</p>";
+        const syncInd = document.getElementById('sync-indicator');
         
-        let allItems = [];
+        // 1. Instantly display whatever is cached
+        if (db.feedCache && db.feedCache.length > 0) {
+            renderFeedItems();
+        }
         
-        // Fetch Wikipedia silently
-        const wikiPost = await fetchRandomWiki();
-        if (wikiPost) allItems.push(wikiPost);
+        syncInd.style.display = 'block';
+        
+        // 2. Start a fresh background batch
+        let streamingItems = [];
+        let completed = 0;
 
-        // Fetch user subscriptions bypassing rss2json completely
-        for (let sub of db.subs) {
+        fetchRandomWiki().then(wiki => {
+            if(wiki) {
+                streamingItems.push(wiki);
+                updateStreamingUI(streamingItems);
+            }
+        });
+
+        db.subs.forEach(async (sub) => {
             try {
                 const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(sub.url.trim())}`;
                 const res = await fetch(proxyUrl);
@@ -378,7 +397,7 @@
                 const parser = new DOMParser();
                 const xmlDoc = parser.parseFromString(data.contents, "text/xml");
                 
-                const entries = Array.from(xmlDoc.querySelectorAll("item, entry")).slice(0, 5); // top 5 per feed
+                const entries = Array.from(xmlDoc.querySelectorAll("item, entry")).slice(0, 5);
                 
                 entries.forEach(node => {
                     const title = node.querySelector("title")?.textContent || "Untitled";
@@ -386,19 +405,15 @@
                     const link = linkNode ? (linkNode.textContent || linkNode.getAttribute("href")) : "";
                     const pubDate = node.querySelector("pubDate, published, updated")?.textContent || new Date().toISOString();
                     
-                    let content = "";
-                    if (node.getElementsByTagNameNS("*", "encoded").length > 0) {
-                        content = node.getElementsByTagNameNS("*", "encoded")[0].textContent;
-                    } else {
-                        content = node.querySelector("description, content")?.textContent || "";
-                    }
+                    let content = node.getElementsByTagNameNS("*", "encoded").length > 0 ? 
+                                  node.getElementsByTagNameNS("*", "encoded")[0].textContent : 
+                                  (node.querySelector("description, content")?.textContent || "");
 
                     const enclosure = node.querySelector("enclosure");
                     const encUrl = enclosure ? enclosure.getAttribute("url") : null;
                     const encType = enclosure ? enclosure.getAttribute("type") : "";
 
                     const mediaThumb = node.querySelector("thumbnail")?.getAttribute("url") || node.querySelector("image")?.getAttribute("href");
-                    
                     let extractedImg = mediaThumb || (encType.startsWith('image') ? encUrl : null);
                     if (!extractedImg) {
                         const imgMatch = content.match(/<img[^>]+src="([^">]+)"/);
@@ -406,29 +421,53 @@
                     }
 
                     let type = 'article';
-                    if (link.includes('youtube') || (encType && (encType.includes('audio') || encType.includes('video'))) || (encUrl && encUrl.match(/\.(mp3|m4a|wav|mp4)/i))) {
+                    if (link.includes('youtube') || 
+                        (encType && (encType.includes('audio') || encType.includes('video'))) || 
+                        (encUrl && encUrl.match(/\.(mp3|m4a|wav|mp4)/i))) {
                         type = 'podcast';
                     }
 
-                    allItems.push({
+                    streamingItems.push({
                         title, link, pubDate, content, source: sub.title,
                         extractedImg, type, enclosure: encUrl ? { link: encUrl } : null
                     });
                 });
             } catch (e) {
-                console.log("Failed to parse feed:", sub.title);
+                // Silently fail to not interrupt others
+            } finally {
+                completed++;
+                updateStreamingUI(streamingItems);
+                if (completed === db.subs.length) {
+                    syncInd.style.display = 'none';
+                }
             }
-        }
-
-        db.feedCache = allItems.sort((a,b) => new Date(b.pubDate) - new Date(a.pubDate));
-        renderFeed('all');
+        });
     }
 
-    function renderFeed(filter) {
+    function updateStreamingUI(items) {
+        db.feedCache = items.sort((a,b) => new Date(b.pubDate) - new Date(a.pubDate));
+        renderFeedItems();
+    }
+
+    function filterFeed(type) {
+        activeFeedFilter = type;
+        displayLimit = ITEMS_PER_PAGE; // Reset pagination on filter change
+        renderFeedItems();
+    }
+
+    function loadMoreFeeds() {
+        displayLimit += ITEMS_PER_PAGE;
+        renderFeedItems();
+    }
+
+    function renderFeedItems() {
         const list = document.getElementById('feed-list');
-        const items = filter === 'all' ? db.feedCache : db.feedCache.filter(i => i.type === filter);
+        const filteredItems = activeFeedFilter === 'all' ? db.feedCache : db.feedCache.filter(i => i.type === activeFeedFilter);
         
-        list.innerHTML = items.map(item => {
+        // Slice based on pagination limit
+        const itemsToRender = filteredItems.slice(0, displayLimit);
+        
+        let html = itemsToRender.map(item => {
             const dateStr = new Date(item.pubDate).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
             return `
             <div class="glass-card" onclick='openMediaModal(${JSON.stringify(item).replace(/'/g, "&apos;")})'>
@@ -437,8 +476,18 @@
                 ${item.extractedImg ? `<img src="${item.extractedImg}" class="feed-img">` : ''}
             </div>`
         }).join('');
+
+        // Pagination UI
+        if (filteredItems.length > displayLimit) {
+            html += `<button class="glass-card" style="width:100%; text-align:center; color:var(--accent); font-weight:bold; cursor:pointer;" onclick="loadMoreFeeds()">Load More ↓</button>`;
+        } else if (filteredItems.length > 0 && db.feedCache.length > 0) {
+            html += `<p style='text-align:center; color:var(--sub); margin-top:20px; font-weight:bold;'>End of Feed</p>`;
+        }
+
+        list.innerHTML = html;
     }
 
+    // --- MODALS ---
     function closeModal(id) {
         const m = document.getElementById(id);
         m.classList.remove('open');
@@ -475,7 +524,7 @@
                 ${topImg}
                 ${contentHtml}
                 <div style="margin-top: 30px; text-align: center;">
-                    <button class="glass-card" style="width:100%; color:var(--accent); font-weight:bold; border: 1px solid var(--accent);" onclick="window.open('${item.link}', '_blank')">
+                    <button class="glass-card" style="width:100%; color:var(--accent); font-weight:bold; border: 1px solid var(--accent); cursor:pointer;" onclick="window.open('${item.link}', '_blank')">
                         Read Original Webpage
                     </button>
                 </div>
@@ -605,9 +654,9 @@
             </div>
             <p style="text-align:center; margin-top:20px; color:var(--sub);">How well did you remember this?</p>
             <div class="srs-btns">
-                <button style="background:#FF3B30;" onclick="processSRS('hard')">Hard</button>
-                <button style="background:#34C759;" onclick="processSRS('good')">Good</button>
-                <button style="background:#007AFF;" onclick="processSRS('easy')">Easy</button>
+                <button style="background:#FF3B30; cursor:pointer;" onclick="processSRS('hard')">Hard</button>
+                <button style="background:#34C759; cursor:pointer;" onclick="processSRS('good')">Good</button>
+                <button style="background:#007AFF; cursor:pointer;" onclick="processSRS('easy')">Easy</button>
             </div>
             <p style="text-align:center; margin-top:20px; color:var(--sub); font-size:13px;">${srsQueue.length} remaining</p>
         `;
