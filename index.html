@@ -15,37 +15,16 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
 
     <style>
-        :root { 
-            --bg: #F2F2F7; --surface: #FFFFFF; --text: #1C1C1E; --sub: #8E8E93; --accent: #007AFF; --border: #E5E5EA;
-        }
-        html.theme-black { 
-            --bg: #000000; --surface: #1C1C1E; --text: #FFFFFF; --sub: #8E8E93; --accent: #0A84FF; --border: #38383A;
-        }
-        html.theme-catppuccin { 
-            --bg: #1e1e2e; --surface: #313244; --text: #cdd6f4; --sub: #a6adc8; --accent: #89b4fa; --border: #45475a;
-        }
-        html.theme-gruvbox { 
-            --bg: #282828; --surface: #3c3836; --text: #ebdbb2; --sub: #928374; --accent: #fe8019; --border: #504945;
-        }
-        html.theme-solarized { 
-            --bg: #002b36; --surface: #073642; --text: #839496; --sub: #586e75; --accent: #268bd2; --border: #073642;
-        }
+        :root { --bg: #F2F2F7; --surface: #FFFFFF; --text: #1C1C1E; --sub: #8E8E93; --accent: #007AFF; --border: #E5E5EA; }
+        html.theme-black { --bg: #000000; --surface: #1C1C1E; --text: #FFFFFF; --sub: #8E8E93; --accent: #0A84FF; --border: #38383A; }
+        html.theme-catppuccin { --bg: #1e1e2e; --surface: #313244; --text: #cdd6f4; --sub: #a6adc8; --accent: #89b4fa; --border: #45475a; }
+        html.theme-gruvbox { --bg: #282828; --surface: #3c3836; --text: #ebdbb2; --sub: #928374; --accent: #fe8019; --border: #504945; }
+        html.theme-solarized { --bg: #002b36; --surface: #073642; --text: #839496; --sub: #586e75; --accent: #268bd2; --border: #073642; }
 
-        /* STRICT MOBILE SAFARI LAYOUT FIX */
-        html, body { 
-            height: 100%; width: 100%; margin: 0; padding: 0; overflow: hidden; 
-            background-color: var(--bg); color: var(--text); 
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
-            touch-action: pan-y; /* Prevents whole-page zooming/bouncing */
-        }
+        html, body { height: 100%; width: 100%; margin: 0; padding: 0; overflow: hidden; background-color: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; touch-action: pan-y; }
         
-        .app-container {
-            display: flex; flex-direction: column; height: 100%; width: 100%;
-        }
-
-        .main-scroll-area {
-            flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: 20px;
-        }
+        .app-container { display: flex; flex-direction: column; height: 100%; width: 100%; }
+        .main-scroll-area { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: 20px; }
 
         header { padding: 60px 25px 20px 25px; position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 80%, transparent); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
         header h1 { font-size: 34px; font-weight: 800; margin: 0; letter-spacing: -0.5px; }
@@ -72,7 +51,6 @@
 
         .view { display: none; } .view.active { display: block; }
 
-        /* --- MODALS --- */
         .fullscreen-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 1000; display: none; flex-direction: column; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); }
         .fullscreen-modal.open { transform: translateY(0); }
         .modal-header { padding: max(20px, env(safe-area-inset-top)) 20px 15px 20px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
@@ -92,27 +70,28 @@
 
         .user-note { margin-top: 12px; padding: 12px; background: color-mix(in srgb, var(--bg) 50%, transparent); border-radius: 10px; border-left: 3px solid var(--accent); font-size: 15px; color: var(--text); }
         #sync-indicator { text-align:center; color:var(--accent); font-weight: bold; font-size:13px; padding-bottom:10px; display:none; }
-        .setting-row { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid var(--border); }
-        .setting-row select { background: var(--surface); border: 1px solid var(--border); padding: 8px 12px; border-radius: 8px; color: var(--text); }
         
-        /* Reader Controls */
+        .setting-row { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 10px;}
+        .setting-row select, .setting-row input[type="time"] { background: var(--surface); border: 1px solid var(--border); padding: 8px 12px; border-radius: 8px; color: var(--text); }
         .reader-controls { display: flex; justify-content: space-between; padding: 10px 0; align-items: center;}
         .reader-controls button { background: var(--surface); border: 1px solid var(--border); color: var(--accent); padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 14px; cursor: pointer;}
         
-        /* TOC Dropdown */
         #toc-dropdown { display: none; position: absolute; top: 110px; left: 20px; right: 20px; max-height: 50vh; overflow-y: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); z-index: 2000; padding: 10px;}
         .toc-item { padding: 12px; border-bottom: 1px solid var(--border); color: var(--text); cursor: pointer; font-size: 16px; }
         .toc-item:last-child { border-bottom: none; }
-        
-        .jump-btn { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); border: 1px solid var(--accent); padding: 6px 12px; border-radius: 12px; font-size: 12px; font-weight: bold; float: right; cursor: pointer; }
+        .jump-btn { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); border: 1px solid var(--accent); padding: 6px 12px; border-radius: 12px; font-size: 12px; font-weight: bold; float: right; cursor: pointer; margin-left: 10px;}
 
-        /* Edit Mode Styles */
         .checkbox-overlay { display: none; position: absolute; top: 15px; right: 15px; width: 24px; height: 24px; border: 2px solid var(--border); border-radius: 6px; }
         .edit-mode .checkbox-overlay { display: block; }
         .edit-mode .glass-card { padding-right: 50px; }
         .glass-card.selected { border-color: #FF3B30; background: color-mix(in srgb, #FF3B30 10%, var(--surface)); }
         .glass-card.selected .checkbox-overlay { background: #FF3B30; border-color: #FF3B30; }
         #bulk-delete-btn { display: none; background: #FF3B30; color: white; width: 100%; padding: 12px; border-radius: 12px; font-weight: bold; border: none; margin-bottom: 20px; cursor: pointer; }
+
+        /* Notification Settings */
+        .day-picker { display: flex; gap: 5px; margin-top: 10px; width: 100%; justify-content: space-between;}
+        .day-bubble { width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--surface); border: 1px solid var(--border); font-size: 12px; font-weight: bold; cursor: pointer; color: var(--sub);}
+        .day-bubble.active { background: var(--accent); color: white; border-color: var(--accent); }
     </style>
 </head>
 <body>
@@ -140,7 +119,7 @@
                 <div id="feed-list"></div>
             </div>
 
-            <!-- EXPLORE / LIBRARY TAB -->
+            <!-- LIBRARY TAB -->
             <div id="view-explore" class="view">
                 <input type="file" id="file-in" accept=".epub,.pdf" style="display:none" onchange="openAndSaveLocalFile(event)">
                 <button class="primary-btn" onclick="document.getElementById('file-in').click()">+ Add Ebook or PDF</button>
@@ -224,19 +203,55 @@
                 <button class="text-btn" onclick="document.getElementById('opml-in').click()">Import OPML</button>
             </div>
         </div>
+
+        <h4 style="margin-top: 30px; margin-bottom: 10px; padding-left: 10px;">Reminders & Alerts</h4>
+        <div class="glass-card" style="padding: 15px 20px;">
+            <div class="setting-row" style="border-bottom:none; flex-direction:column; align-items:flex-start;">
+                <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
+                    <strong>Schedule Type</strong>
+                    <select id="setting-notif-type" onchange="toggleNotifUI()">
+                        <option value="none">Off</option>
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Custom Days</option>
+                    </select>
+                </div>
+                
+                <div id="notif-days-ui" class="day-picker" style="display:none;">
+                    <div class="day-bubble" onclick="toggleDay('0')" id="day-0">S</div>
+                    <div class="day-bubble" onclick="toggleDay('1')" id="day-1">M</div>
+                    <div class="day-bubble" onclick="toggleDay('2')" id="day-2">T</div>
+                    <div class="day-bubble" onclick="toggleDay('3')" id="day-3">W</div>
+                    <div class="day-bubble" onclick="toggleDay('4')" id="day-4">T</div>
+                    <div class="day-bubble" onclick="toggleDay('5')" id="day-5">F</div>
+                    <div class="day-bubble" onclick="toggleDay('6')" id="day-6">S</div>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; width:100%; align-items:center; margin-top:15px;">
+                    <strong>Time</strong>
+                    <input type="time" id="setting-notif-time" value="09:00">
+                </div>
+                
+                <button class="text-btn" style="width:100%; margin-top:20px; text-align:center; border: 1px solid var(--accent); padding: 10px; border-radius: 12px;" onclick="generateCalendarInvite()">
+                    Export to Apple Calendar
+                </button>
+                <p style="font-size:11px; color:var(--sub); text-align:center; margin-top:10px;">
+                    iOS restricts background notifications for web apps. Add this schedule to your Calendar to get reliable alerts when the app is closed.
+                </p>
+            </div>
+        </div>
     </div>
 </div>
 
 <!-- NATIVE MEDIA READER OVERLAY -->
-<div id="media-modal" class="fullscreen-modal" data-current-media-id="" data-current-type="" data-current-source="">
+<div id="media-modal" class="fullscreen-modal" data-current-media-id="" data-current-type="" data-current-source="" data-current-link="">
     <div class="modal-header">
         <h3 id="modal-title" style="margin:0; font-size: 18px; max-width: 70%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Reader</h3>
         <button class="icon-btn" onclick="closeModal('media-modal')"><span class="material-symbols-outlined">close</span></button>
     </div>
     
     <div class="modal-content" id="modal-body" style="padding: 10px;">
-        
         <div id="modal-audio-ui" style="display:none;">
+            <!-- Note: playsinline=0 requests native fullscreen player on iOS Safari -->
             <iframe id="main-video" style="width:100%; aspect-ratio:16/9; border-radius:12px; border:none; margin-bottom:15px; display:none;" allowfullscreen></iframe>
             <audio id="main-audio" controls style="width:100%; margin-bottom:15px; display:none;"></audio>
             <button class="text-btn" style="width:100%; background:var(--accent); color:white; padding:12px; border-radius:12px; margin-bottom:15px;" onclick="snipAudio()">✂️ Snip Moment to Inbox</button>
@@ -292,8 +307,11 @@
     // --- INIT DB & SETTINGS ---
     function initDB() {
         let currentDB = JSON.parse(localStorage.getItem('recall_v3_db'));
-        if (!currentDB || !currentDB.notes) currentDB = { subs: [], notes: [], feedCache: [], localMedia: [], lastSync: 0, settings: { theme: 'black', feedLimit: 15, srsMode: 3 } };
-        if(!currentDB.settings) currentDB.settings = { theme: 'black', feedLimit: 15, srsMode: 3 };
+        if (!currentDB || !currentDB.notes) currentDB = { subs: [], notes: [], feedCache: [], localMedia: [], lastSync: 0, settings: {} };
+        
+        // Defaults
+        const defSettings = { theme: 'black', feedLimit: 15, srsMode: 3, notifType: 'none', notifDays: [], notifTime: '09:00' };
+        currentDB.settings = { ...defSettings, ...(currentDB.settings || {}) };
         if(!currentDB.localMedia) currentDB.localMedia = [];
         return currentDB;
     }
@@ -314,9 +332,117 @@
     document.getElementById('setting-theme').value = db.settings.theme;
     document.getElementById('setting-limit').value = db.settings.feedLimit;
     document.getElementById('setting-srs').value = db.settings.srsMode;
+    document.getElementById('setting-notif-type').value = db.settings.notifType;
+    document.getElementById('setting-notif-time').value = db.settings.notifTime;
+    toggleNotifUI();
 
-    function save() { localStorage.setItem('recall_v3_db', JSON.stringify(db)); }
+    function save() { 
+        db.settings.notifType = document.getElementById('setting-notif-type').value;
+        db.settings.notifTime = document.getElementById('setting-notif-time').value;
+        localStorage.setItem('recall_v3_db', JSON.stringify(db)); 
+    }
 
+    // --- NOTIFICATIONS & REMINDERS ---
+    function toggleNotifUI() {
+        const type = document.getElementById('setting-notif-type').value;
+        document.getElementById('notif-days-ui').style.display = type === 'weekly' ? 'flex' : 'none';
+        
+        // Render saved days
+        document.querySelectorAll('.day-bubble').forEach(el => el.classList.remove('active'));
+        if(type === 'weekly' && db.settings.notifDays) {
+            db.settings.notifDays.forEach(d => {
+                const el = document.getElementById('day-' + d);
+                if(el) el.classList.add('active');
+            });
+        }
+        save();
+    }
+
+    function toggleDay(dayNum) {
+        const el = document.getElementById('day-' + dayNum);
+        if(!db.settings.notifDays) db.settings.notifDays = [];
+        
+        if (db.settings.notifDays.includes(dayNum)) {
+            db.settings.notifDays = db.settings.notifDays.filter(d => d !== dayNum);
+            el.classList.remove('active');
+        } else {
+            db.settings.notifDays.push(dayNum);
+            el.classList.add('active');
+        }
+        save();
+    }
+
+    function generateCalendarInvite() {
+        const type = document.getElementById('setting-notif-type').value;
+        if(type === 'none') return alert("Please select Daily or Custom Days first.");
+        
+        const time = document.getElementById('setting-notif-time').value.replace(':', '') + '00';
+        
+        let rrule = '';
+        if (type === 'daily') rrule = 'RRULE:FREQ=DAILY';
+        else if (type === 'weekly' && db.settings.notifDays.length > 0) {
+            const map = {'0':'SU','1':'MO','2':'TU','3':'WE','4':'TH','5':'FR','6':'SA'};
+            const daysStr = db.settings.notifDays.map(d => map[d]).join(',');
+            rrule = `RRULE:FREQ=WEEKLY;BYDAY=${daysStr}`;
+        } else {
+            return alert("Please select at least one day.");
+        }
+
+        const icsContent = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Recall App//Reminder//EN
+BEGIN:VEVENT
+SUMMARY:Recall Media & SRS Review
+DESCRIPTION:Time to check your new feeds and review your Spaced Repetition notes in Recall.
+DTSTART;TZID=Asia/Kolkata:20240101T${time}
+DTEND;TZID=Asia/Kolkata:20240101T${parseInt(time)+10000}
+${rrule}
+BEGIN:VALARM
+TRIGGER:-PT0M
+ACTION:DISPLAY
+DESCRIPTION:Reminder
+END:VALARM
+END:VEVENT
+END:VCALENDAR`;
+
+        const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+        const link = document.createElement('a');
+        link.href = window.URL.createObjectURL(blob);
+        link.setAttribute('download', 'Recall_Reminder.ics');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    function checkInAppReminders() {
+        const type = db.settings.notifType;
+        if (type === 'none') return;
+        
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+        
+        // Prevent spamming
+        if (db.settings.lastAlertDate === todayStr) return;
+        
+        let shouldAlert = false;
+        if (type === 'daily') shouldAlert = true;
+        else if (type === 'weekly' && db.settings.notifDays.includes(now.getDay().toString())) shouldAlert = true;
+
+        if (shouldAlert) {
+            const pendingReviews = db.notes.filter(n => n.nextReview <= Date.now()).length;
+            let msg = "Welcome back! ";
+            if (pendingReviews > 0) msg += `You have ${pendingReviews} notes waiting for review today.`;
+            else msg += "Time to catch up on your latest feeds.";
+            
+            setTimeout(() => {
+                if(confirm(msg + "\n\nStart Review now?")) startSRS();
+                db.settings.lastAlertDate = todayStr;
+                save();
+            }, 1000); // Small delay on app load
+        }
+    }
+
+    // --- NAVIGATION ---
     function switchTab(tab) {
         document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
         document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
@@ -337,6 +463,7 @@
     function openSettings() {
         const modal = document.getElementById('settings-modal');
         modal.style.display = 'flex';
+        document.body.classList.add('modal-open');
         setTimeout(() => modal.classList.add('open'), 10);
     }
 
@@ -344,16 +471,18 @@
         db.settings.theme = document.getElementById('setting-theme').value;
         db.settings.feedLimit = parseInt(document.getElementById('setting-limit').value);
         db.settings.srsMode = parseInt(document.getElementById('setting-srs').value);
+        save();
         
         document.documentElement.className = 'theme-' + db.settings.theme;
         displayLimit = db.settings.feedLimit;
-        save();
+        
         if (document.getElementById('view-feed').classList.contains('active')) renderFeedItems();
     }
 
     function closeModal(id) {
         const m = document.getElementById(id);
         m.classList.remove('open');
+        document.body.classList.remove('modal-open');
         if(id === 'media-modal') {
             document.getElementById('main-audio').pause();
             document.getElementById('main-video').src = '';
@@ -454,7 +583,7 @@
         
         const modal = document.getElementById('media-modal');
         modal.style.display = 'flex';
-        setTimeout(() => modal.classList.add('open'), 10);
+        document.body.classList.add('modal-open');
         
         document.getElementById('modal-title').innerText = title;
         modal.dataset.currentMediaId = id;
@@ -470,45 +599,42 @@
         if(file.name.toLowerCase().endsWith('.pdf')) {
             document.getElementById('modal-pdf-ui').style.display = 'block';
             document.getElementById('pdf-viewer').src = URL.createObjectURL(file);
+            setTimeout(() => modal.classList.add('open'), 10);
         } else {
             document.getElementById('modal-ebook-ui').style.display = 'block';
             document.getElementById('epub-viewer').innerHTML = ''; 
             
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                epubBook = ePub(event.target.result);
-                rendition = epubBook.renderTo("epub-viewer", { width: "100%", height: "100%", manager: "continuous", flow: "paginated" });
-                
-                if (jumpTarget) {
-                    rendition.display(jumpTarget);
-                } else {
-                    rendition.display();
-                }
+            // Render EPUB after modal transition to prevent 0x0 bug
+            setTimeout(() => {
+                modal.classList.add('open');
+                setTimeout(() => {
+                    epubBook = ePub(file);
+                    rendition = epubBook.renderTo("epub-viewer", { width: "100%", height: "100%", manager: "continuous", flow: "paginated" });
+                    
+                    if (jumpTarget) rendition.display(jumpTarget);
+                    else rendition.display();
 
-                epubBook.loaded.navigation.then(function(toc){
-                    let tocHtml = toc.map(chapter => `<div class="toc-item" onclick="rendition.display('${chapter.href}'); document.getElementById('toc-dropdown').style.display='none';">${chapter.label}</div>`).join('');
-                    document.getElementById('toc-dropdown').innerHTML = tocHtml;
-                });
-                
-                // Swipe to turn page
-                let touchstartX = 0; let touchendX = 0;
-                rendition.on('touchstart', ev => { touchstartX = ev.changedTouches[0].screenX; });
-                rendition.on('touchend', ev => { 
-                    touchendX = ev.changedTouches[0].screenX; 
-                    if (touchendX < touchstartX - 50) rendition.next();
-                    if (touchendX > touchstartX + 50) rendition.prev();
-                });
-                
-                // Highlight interceptor inside iframe
-                rendition.on("selected", (cfiRange) => {
-                    const text = window.getSelection().toString() || "EPUB Highlight Saved";
-                    const btn = document.getElementById('floating-highlight');
-                    btn.style.display = 'block';
-                    btn.dataset.cfi = cfiRange;
-                    btn.dataset.text = text;
-                });
-            };
-            reader.readAsArrayBuffer(file);
+                    epubBook.loaded.navigation.then(function(toc){
+                        let tocHtml = toc.map(chapter => `<div class="toc-item" onclick="rendition.display('${chapter.href}'); document.getElementById('toc-dropdown').style.display='none';">${chapter.label}</div>`).join('');
+                        document.getElementById('toc-dropdown').innerHTML = tocHtml;
+                    });
+                    
+                    let touchstartX = 0; let touchendX = 0;
+                    rendition.on('touchstart', ev => { touchstartX = ev.changedTouches[0].screenX; });
+                    rendition.on('touchend', ev => { 
+                        touchendX = ev.changedTouches[0].screenX; 
+                        if (touchendX < touchstartX - 50) rendition.next();
+                        if (touchendX > touchstartX + 50) rendition.prev();
+                    });
+                    
+                    rendition.on("selected", (cfiRange) => {
+                        const btn = document.getElementById('floating-highlight');
+                        btn.style.display = 'block';
+                        btn.dataset.cfi = cfiRange;
+                        btn.dataset.text = ""; // Force prompt or generic text since iframe blocks direct selection string access sometimes
+                    });
+                }, 350); // Give modal time to calculate height
+            }, 10);
         }
     }
 
@@ -558,7 +684,7 @@
 
         try {
             resDiv.innerHTML = "";
-            const proxyBase = "https://corsproxy.io/?"; 
+            const proxyBase = "https://api.allorigins.win/get?url=";
             
             if (type === 'podcast') {
                 const res = await fetch(`https://itunes.apple.com/search?media=podcast&term=${encodeURIComponent(q)}`);
@@ -569,7 +695,8 @@
             } 
             else if (type === 'reddit') {
                 const res = await fetch(proxyBase + encodeURIComponent(`https://www.reddit.com/subreddits/search.json?q=${encodeURIComponent(q)}`));
-                const data = await res.json();
+                const jsonRaw = await res.json();
+                const data = JSON.parse(jsonRaw.contents);
                 if (data.data && data.data.children) {
                     data.data.children.slice(0, 5).forEach(child => {
                         const sub = child.data.display_name_prefixed;
@@ -580,7 +707,8 @@
             else if (type === 'youtube') {
                 const urlToFetch = q.startsWith("@") ? `https://www.youtube.com/${q}` : q;
                 const res = await fetch(proxyBase + encodeURIComponent(urlToFetch));
-                const html = await res.text();
+                const jsonRaw = await res.json();
+                const html = jsonRaw.contents;
                 const match = html.match(/"externalId":"(UC[^"]+)"/) || html.match(/channel_id=([a-zA-Z0-9_-]+)/);
                 if (match && match[1]) {
                     const titleMatch = html.match(/<title>(.*?) - YouTube<\/title>/);
@@ -624,11 +752,12 @@
 
         db.subs.forEach(async (sub) => {
             try {
-                const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(sub.url.trim())}`;
+                // Safest CORS proxy wrapper to avoid direct XML parse errors
+                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(sub.url.trim())}`;
                 const res = await fetch(proxyUrl);
-                const textData = await res.text();
+                const jsonRaw = await res.json();
                 const parser = new DOMParser();
-                const xmlDoc = parser.parseFromString(textData, "text/xml");
+                const xmlDoc = parser.parseFromString(jsonRaw.contents, "text/xml");
                 const entries = Array.from(xmlDoc.querySelectorAll("item, entry")).slice(0, 5); 
                 
                 entries.forEach((node, index) => {
@@ -641,7 +770,7 @@
                     const enclosure = node.querySelector("enclosure");
                     const encUrl = enclosure ? enclosure.getAttribute("url") : null;
                     const encType = enclosure ? enclosure.getAttribute("type") : "";
-                    const mediaThumb = node.querySelector("thumbnail")?.getAttribute("url") || node.querySelector("image")?.getAttribute("href");
+                    const mediaThumb = node.querySelector("thumbnail")?.getAttribute("url") || node.querySelector("image")?.getAttribute("href") || node.querySelector("group thumbnail")?.getAttribute("url");
                     
                     let extractedImg = mediaThumb || (encType.startsWith('image') ? encUrl : null);
                     if (!extractedImg) { const imgMatch = content.match(/<img[^>]+src="([^">]+)"/); if (imgMatch) extractedImg = imgMatch[1]; }
@@ -698,12 +827,14 @@
     async function openMediaModal(item) {
         const modal = document.getElementById('media-modal');
         modal.style.display = 'flex';
+        document.body.classList.add('modal-open');
         setTimeout(() => modal.classList.add('open'), 10);
         
         document.getElementById('modal-title').innerText = item.title;
         modal.dataset.currentType = item.type;
         modal.dataset.currentSource = item.source;
-        modal.dataset.currentLink = item.link; // Store for jump-back
+        modal.dataset.currentLink = item.link; 
+        modal.dataset.currentImg = item.extractedImg || '';
         
         const audioUI = document.getElementById('modal-audio-ui');
         const articleUI = document.getElementById('modal-article-ui');
@@ -721,7 +852,11 @@
                 let vidId = '';
                 if(item.link.includes('v=')) vidId = item.link.split('v=')[1].split('&')[0];
                 else if(item.link.includes('youtu.be/')) vidId = item.link.split('youtu.be/')[1].split('?')[0];
-                if(vidId) { videoEl.src = `https://www.youtube.com/embed/${vidId}`; videoEl.style.display = 'block'; }
+                if(vidId) { 
+                    // playsinline=0 forces native iOS video player
+                    videoEl.src = `https://www.youtube.com/embed/${vidId}?playsinline=0`; 
+                    videoEl.style.display = 'block'; 
+                }
             } else {
                 audioEl.src = item.enclosure ? item.enclosure.link : '';
                 audioEl.style.display = 'block';
@@ -738,10 +873,10 @@
             articleBody.innerHTML = `${topImg}<div style="font-size:13px; color:var(--sub); text-align:center; margin-bottom:10px;">Extracting full text...</div>${contentHtml}`;
 
             try {
-                const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(item.link)}`;
+                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(item.link)}`;
                 const response = await fetch(proxyUrl);
-                const html = await response.text();
-                const doc = new DOMParser().parseFromString(html, 'text/html');
+                const data = await response.json();
+                const doc = new DOMParser().parseFromString(data.contents, 'text/html');
                 const reader = new Readability(doc);
                 const article = reader.parse();
                 
@@ -764,7 +899,6 @@
         const btn = document.getElementById('floating-highlight');
         if (text.length > 0 && document.getElementById('media-modal').classList.contains('open')) {
             btn.style.display = 'block';
-            // Ebook CFI handled inside the epub renderer
             if(!btn.dataset.cfi) btn.dataset.text = text;
         } else { 
             btn.style.display = 'none'; 
@@ -776,7 +910,14 @@
         event.preventDefault(); 
         const btn = document.getElementById('floating-highlight');
         const modal = document.getElementById('media-modal');
-        const text = btn.dataset.text || window.getSelection().toString().trim();
+        
+        let text = window.getSelection().toString().trim();
+        // If in epub iframe, use the fallback text prompt since we can't reliably get selection string directly cross-origin
+        if(modal.dataset.currentType === 'epub') {
+            text = prompt("Save Highlight/Note for this EPUB selection:") || "EPUB Bookmark";
+        } else {
+            text = btn.dataset.text || text;
+        }
         
         if(text) {
             const source = document.getElementById('modal-title').innerText;
@@ -786,7 +927,7 @@
             if (type === 'epub') target = btn.dataset.cfi;
             else if (type === 'article') target = modal.dataset.currentLink;
             
-            saveNote(text, source, type, target, modal.dataset.currentMediaId);
+            saveNote(text, source, type, target, modal.dataset.currentMediaId, modal.dataset.currentImg);
             window.getSelection().removeAllRanges();
             btn.style.display = 'none';
         }
@@ -807,12 +948,12 @@
         }
         
         const thought = prompt("Enter your note for this media:");
-        if(thought) saveNote(`${prefix}${thought}`, document.getElementById('modal-title').innerText, 'podcast', target);
+        if(thought) saveNote(`${prefix}${thought}`, document.getElementById('modal-title').innerText, 'podcast', target, null, modal.dataset.currentImg);
     }
 
-    function saveNote(text, source, type, linkTarget, mediaId = null) {
+    function saveNote(text, source, type, linkTarget, mediaId = null, img = "") {
         db.notes.push({ 
-            id: Date.now().toString(), text, source, type, linkTarget, mediaId, thoughts: "", 
+            id: Date.now().toString(), text, source, type, linkTarget, mediaId, img, thoughts: "", 
             date: new Date().toISOString(), reviewCount: 0, interval: 1, ease: 2.5, nextReview: Date.now(), history: [] 
         });
         save(); alert("Saved to Inbox!"); renderInbox();
@@ -823,6 +964,7 @@
         list.innerHTML = db.notes.length ? db.notes.sort((a,b) => b.id - a.id).map(n => `
             <div class="glass-card" style="cursor:default;">
                 <button class="jump-btn" onclick="jumpToSource('${n.id}')">↗ Source</button>
+                ${n.img ? `<img src="${n.img}" class="inbox-img">` : ''}
                 <span class="item-meta">${n.source}</span>
                 <span class="item-title" style="font-size:16px;">${n.text}</span>
                 <div class="user-note" onclick="editThought('${n.id}')">
@@ -841,15 +983,11 @@
         
         if(note.type === 'epub') {
             if(note.mediaId && note.linkTarget) loadSavedMedia(note.mediaId, note.source, note.linkTarget);
-            else alert("Cannot locate original Ebook.");
+            else alert("Cannot locate original Ebook. It may have been deleted.");
         } 
-        else if (note.type === 'article') {
-            if(note.linkTarget) window.open(note.linkTarget, '_blank');
-            else alert("No URL saved for this article.");
-        }
-        else if (note.type === 'podcast') {
-            // Find item in cache and open modal, then skip time (simplified jump for audio)
-            alert(`This note was taken at ${note.linkTarget} seconds. Please open the podcast from your feed.`);
+        else if (note.type === 'article' || note.type === 'podcast') {
+            if(note.linkTarget && isNaN(note.linkTarget)) window.open(note.linkTarget, '_blank');
+            else alert("No direct URL saved for this media. Check your feed.");
         }
     }
 
@@ -867,6 +1005,7 @@
         
         const modal = document.getElementById('srs-modal');
         modal.style.display = 'flex';
+        document.body.classList.add('modal-open');
         setTimeout(() => modal.classList.add('open'), 10);
         showNextSRS();
     }
@@ -892,6 +1031,7 @@
 
         body.innerHTML = `
             <div class="glass-card">
+                ${note.img ? `<img src="${note.img}" class="inbox-img" style="width:80px; height:80px;">` : ''}
                 <span class="item-meta" style="color:var(--accent);">${note.source}</span>
                 <span class="item-title" style="font-size:18px;">${note.text}</span>
                 ${note.thoughts ? `<div class="user-note">${note.thoughts}</div>` : ''}
@@ -919,7 +1059,9 @@
         db.notes[idx] = note; save(); showNextSRS();
     }
 
+    // Start App & Check Reminders
     switchTab('inbox');
+    setTimeout(checkInAppReminders, 1000);
 </script>
 </body>
 </html>
