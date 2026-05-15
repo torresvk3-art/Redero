@@ -9,10 +9,9 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/epub.js/0.3.88/epub.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.5/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/epub.js/0.3.88/epub.min.js"></script>
     <script src="https://unpkg.com/@mozilla/readability/Readability.js"></script>
-    <!-- Added LocalForage for permanent offline Ebook/PDF storage -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
 
     <style>
@@ -32,16 +31,28 @@
             --bg: #002b36; --surface: #073642; --text: #839496; --sub: #586e75; --accent: #268bd2; --border: #073642;
         }
 
-        html { background-color: var(--bg); transition: background-color 0.2s; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding-bottom: 100px; transition: all 0.2s ease; -webkit-font-smoothing: antialiased; min-height: 100dvh; }
-        body.modal-open { overflow: hidden; height: 100vh; }
+        /* STRICT MOBILE SAFARI LAYOUT FIX */
+        html, body { 
+            height: 100%; width: 100%; margin: 0; padding: 0; overflow: hidden; 
+            background-color: var(--bg); color: var(--text); 
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+            touch-action: pan-y; /* Prevents whole-page zooming/bouncing */
+        }
+        
+        .app-container {
+            display: flex; flex-direction: column; height: 100%; width: 100%;
+        }
+
+        .main-scroll-area {
+            flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: 20px;
+        }
 
         header { padding: 60px 25px 20px 25px; position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 80%, transparent); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
         header h1 { font-size: 34px; font-weight: 800; margin: 0; letter-spacing: -0.5px; }
         .header-btns { display: flex; gap: 12px; }
         .icon-btn { background: none; border: none; color: var(--accent); cursor: pointer; padding: 0; display:flex; align-items:center; justify-content:center; }
 
-        .container { padding: 20px; }
+        .content-padding { padding: 20px; }
 
         .glass-card { background: color-mix(in srgb, var(--surface) 60%, transparent); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid color-mix(in srgb, var(--text) 10%, transparent); border-radius: 20px; padding: 20px; margin-bottom: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.05); transition: transform 0.1s; position: relative; }
         .item-title { font-size: 19px; font-weight: 700; margin-bottom: 8px; display: block; line-height: 1.3; }
@@ -49,8 +60,8 @@
         .feed-img { width: 100%; max-height: 250px; object-fit: cover; border-radius: 12px; margin-top: 12px; border: 1px solid var(--border); }
         .inbox-img { width: 60px; height: 60px; object-fit: cover; border-radius: 10px; float: right; margin-left: 10px; border: 1px solid var(--border); }
 
-        nav { position: fixed; bottom: 0; left: 0; right: 0; background: color-mix(in srgb, var(--surface) 85%, transparent); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); display: flex; justify-content: space-around; border-top: 1px solid var(--border); padding-bottom: max(12px, env(safe-area-inset-bottom)); padding-top: 12px; z-index: 50; }
-        nav button { background: none; border: none; color: var(--sub); font-size: 11px; font-weight: 500; display:flex; flex-direction:column; align-items:center; gap:4px; }
+        nav { height: max(65px, env(safe-area-inset-bottom) + 50px); background: color-mix(in srgb, var(--surface) 85%, transparent); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); display: flex; justify-content: space-around; border-top: 1px solid var(--border); padding-top: 10px; padding-bottom: env(safe-area-inset-bottom); flex-shrink: 0; }
+        nav button { background: none; border: none; color: var(--sub); font-size: 11px; font-weight: 500; display:flex; flex-direction:column; align-items:center; gap:4px; height: 100%; cursor: pointer;}
         nav button.active { color: var(--accent); }
 
         .search-bar { background: var(--surface); border-radius: 12px; padding: 8px 15px; margin-bottom: 20px; display: flex; align-items: center; border: 1px solid var(--border); }
@@ -61,28 +72,40 @@
 
         .view { display: none; } .view.active { display: block; }
 
-        .fullscreen-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100dvh; background: var(--bg); z-index: 1000; display: none; flex-direction: column; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); }
+        /* --- MODALS --- */
+        .fullscreen-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 1000; display: none; flex-direction: column; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); }
         .fullscreen-modal.open { transform: translateY(0); }
-        .modal-header { padding: max(20px, env(safe-area-inset-top)) 20px 15px 20px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1001; }
-        .modal-content { flex: 1; overflow-y: auto; padding: 20px; padding-bottom: 120px; -webkit-user-select: text; user-select: text; -webkit-overflow-scrolling: touch; }
+        .modal-header { padding: max(20px, env(safe-area-inset-top)) 20px 15px 20px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        .modal-content { flex: 1; overflow-y: auto; padding: 20px; padding-bottom: 60px; -webkit-user-select: text; user-select: text; -webkit-overflow-scrolling: touch; }
         
-        #epub-viewer { width: 100%; height: 65vh; background: var(--surface); border-radius: 12px; margin: 10px 0; overflow: hidden; border: 1px solid var(--border); }
-        #article-body, #transcript-container { font-size: 18px; line-height: 1.6; color: var(--text); padding: 15px; background: var(--surface); border-radius: 16px; border: 1px solid var(--border); overflow-wrap: break-word;}
+        #epub-viewer { width: 100%; height: 100%; background: var(--surface); margin: 0; overflow: hidden; border: none; transition: filter 0.2s ease;}
+        .epub-container-wrapper { height: 70vh; width: 100%; border-radius: 12px; overflow: hidden; margin-top: 10px; }
+        
+        #article-body, #transcript-container { font-size: 18px; line-height: 1.6; color: var(--text); padding: 0 10px; overflow-wrap: break-word;}
         #article-body img, #article-body figure, #article-body iframe { max-width: 100%; height: auto; border-radius: 10px; margin: 15px 0; display: block; }
-        #pdf-viewer { width: 100%; height: 80vh; border: none; border-radius: 12px; }
+        #pdf-viewer { width: 100%; height: 85vh; border: none; border-radius: 12px; }
 
         .srs-btns { display: flex; gap: 10px; margin-top: 20px; }
         .srs-btns button { flex: 1; padding: 15px; border-radius: 12px; border: none; font-weight: bold; font-size: 16px; color: white; cursor: pointer; }
 
-        #floating-highlight { display: none; position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%); background: var(--accent); color: white; padding: 14px 28px; border-radius: 30px; font-weight: 700; font-size: 16px; border: none; box-shadow: 0 8px 24px rgba(0,0,0,0.3); z-index: 1002; }
+        #floating-highlight { display: none; position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: var(--accent); color: white; padding: 14px 28px; border-radius: 30px; font-weight: 700; font-size: 16px; border: none; box-shadow: 0 8px 24px rgba(0,0,0,0.3); z-index: 1002; }
 
         .user-note { margin-top: 12px; padding: 12px; background: color-mix(in srgb, var(--bg) 50%, transparent); border-radius: 10px; border-left: 3px solid var(--accent); font-size: 15px; color: var(--text); }
         #sync-indicator { text-align:center; color:var(--accent); font-weight: bold; font-size:13px; padding-bottom:10px; display:none; }
         .setting-row { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid var(--border); }
         .setting-row select { background: var(--surface); border: 1px solid var(--border); padding: 8px 12px; border-radius: 8px; color: var(--text); }
-        .reader-controls { display: flex; justify-content: space-between; padding: 10px 0; align-items: center;}
-        .reader-controls button { background: var(--surface); border: 1px solid var(--border); color: var(--accent); padding: 10px 20px; border-radius: 20px; font-weight: bold; font-size: 16px; cursor: pointer;}
         
+        /* Reader Controls */
+        .reader-controls { display: flex; justify-content: space-between; padding: 10px 0; align-items: center;}
+        .reader-controls button { background: var(--surface); border: 1px solid var(--border); color: var(--accent); padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 14px; cursor: pointer;}
+        
+        /* TOC Dropdown */
+        #toc-dropdown { display: none; position: absolute; top: 110px; left: 20px; right: 20px; max-height: 50vh; overflow-y: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); z-index: 2000; padding: 10px;}
+        .toc-item { padding: 12px; border-bottom: 1px solid var(--border); color: var(--text); cursor: pointer; font-size: 16px; }
+        .toc-item:last-child { border-bottom: none; }
+        
+        .jump-btn { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); border: 1px solid var(--accent); padding: 6px 12px; border-radius: 12px; font-size: 12px; font-weight: bold; float: right; cursor: pointer; }
+
         /* Edit Mode Styles */
         .checkbox-overlay { display: none; position: absolute; top: 15px; right: 15px; width: 24px; height: 24px; border: 2px solid var(--border); border-radius: 6px; }
         .edit-mode .checkbox-overlay { display: block; }
@@ -94,63 +117,71 @@
 </head>
 <body>
 
-<header>
-    <h1 id="title">Inbox</h1>
-    <div class="header-btns">
-        <button class="icon-btn" onclick="startSRS()"><span class="material-symbols-outlined">psychology</span></button>
-        <button class="icon-btn" onclick="openSettings()"><span class="material-symbols-outlined">settings</span></button>
-    </div>
-</header>
-
-<div class="container">
-    <!-- FEED TAB -->
-    <div id="view-feed" class="view">
-        <div id="filter-bar" style="margin-bottom:15px; display:flex; gap:15px; overflow-x:auto; padding-bottom:10px; align-items: center;">
-            <button class="text-btn" onclick="filterFeed('all')">All</button>
-            <button class="text-btn" onclick="filterFeed('podcast')">Media</button>
-            <button class="text-btn" onclick="filterFeed('article')">Articles</button>
-            <button class="icon-btn" style="margin-left:auto;" onclick="refreshFeed(true)"><span class="material-symbols-outlined">sync</span></button>
+<div class="app-container">
+    <header>
+        <h1 id="title">Inbox</h1>
+        <div class="header-btns">
+            <button class="icon-btn" onclick="startSRS()"><span class="material-symbols-outlined">psychology</span></button>
+            <button class="icon-btn" onclick="openSettings()"><span class="material-symbols-outlined">settings</span></button>
         </div>
-        <div id="sync-indicator">↻ Streaming posts...</div>
-        <div id="feed-list"></div>
-    </div>
+    </header>
 
-    <!-- EXPLORE / LIBRARY TAB -->
-    <div id="view-explore" class="view">
-        <!-- Pinned Add Buttons -->
-        <input type="file" id="file-in" accept=".epub,.pdf" style="display:none" onchange="openAndSaveLocalFile(event)">
-        <button class="primary-btn" onclick="document.getElementById('file-in').click()">+ Add Ebook or PDF</button>
+    <div class="main-scroll-area">
+        <div class="content-padding">
+            <!-- FEED TAB -->
+            <div id="view-feed" class="view">
+                <div id="filter-bar" style="margin-bottom:15px; display:flex; gap:15px; overflow-x:auto; padding-bottom:10px; align-items: center;">
+                    <button class="text-btn" onclick="filterFeed('all')">All</button>
+                    <button class="text-btn" onclick="filterFeed('podcast')">Media</button>
+                    <button class="text-btn" onclick="filterFeed('article')">Articles</button>
+                    <button class="icon-btn" style="margin-left:auto;" onclick="refreshFeed(true)"><span class="material-symbols-outlined">sync</span></button>
+                </div>
+                <div id="sync-indicator">↻ Streaming posts...</div>
+                <div id="feed-list"></div>
+            </div>
 
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-            <select class="dropdown-select" id="library-filter" onchange="renderLibrary()" style="font-size:18px; font-weight:bold; background:var(--surface); padding:8px 12px; border-radius:12px; border:1px solid var(--border);">
-                <option value="all">All Library</option>
-                <option value="subs">Subscriptions</option>
-                <option value="epub">Ebooks</option>
-                <option value="pdf">PDFs</option>
-            </select>
-            <button class="text-btn" id="edit-lib-btn" onclick="toggleLibraryEditMode()">Edit</button>
+            <!-- EXPLORE / LIBRARY TAB -->
+            <div id="view-explore" class="view">
+                <input type="file" id="file-in" accept=".epub,.pdf" style="display:none" onchange="openAndSaveLocalFile(event)">
+                <button class="primary-btn" onclick="document.getElementById('file-in').click()">+ Add Ebook or PDF</button>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <select class="dropdown-select" id="library-filter" onchange="renderLibrary()" style="font-size:18px; font-weight:bold; background:var(--surface); padding:8px 12px; border-radius:12px; border:1px solid var(--border);">
+                        <option value="all">All Library</option>
+                        <option value="subs">Subscriptions</option>
+                        <option value="epub">Ebooks</option>
+                        <option value="pdf">PDFs</option>
+                    </select>
+                    <button class="text-btn" id="edit-lib-btn" onclick="toggleLibraryEditMode()">Edit</button>
+                </div>
+
+                <button id="bulk-delete-btn" onclick="deleteSelectedItems()">Delete Selected</button>
+
+                <div class="search-bar" id="sub-search-bar">
+                    <select id="search-type">
+                        <option value="podcast">Podcasts</option>
+                        <option value="reddit">Reddit</option>
+                        <option value="youtube">YouTube</option>
+                    </select>
+                    <input type="text" id="lib-search" placeholder="Search or paste channel...">
+                    <button class="text-btn" onclick="searchExplore()">Find</button>
+                </div>
+                <div id="search-results"></div>
+                <div id="library-list"></div>
+            </div>
+
+            <!-- INBOX TAB -->
+            <div id="view-inbox" class="view active">
+                <div id="inbox-list"></div>
+            </div>
         </div>
-
-        <button id="bulk-delete-btn" onclick="deleteSelectedItems()">Delete Selected</button>
-
-        <div class="search-bar" id="sub-search-bar">
-            <select id="search-type">
-                <option value="podcast">Podcasts</option>
-                <option value="reddit">Reddit</option>
-                <option value="youtube">YouTube</option>
-            </select>
-            <input type="text" id="lib-search" placeholder="Search or paste channel...">
-            <button class="text-btn" onclick="searchExplore()">Find</button>
-        </div>
-        <div id="search-results"></div>
-        
-        <div id="library-list"></div>
     </div>
 
-    <!-- INBOX TAB -->
-    <div id="view-inbox" class="view active">
-        <div id="inbox-list"></div>
-    </div>
+    <nav>
+        <button onclick="switchTab('feed')" id="nav-feed"><span class="material-symbols-outlined">rss_feed</span>Feed</button>
+        <button onclick="switchTab('explore')" id="nav-explore"><span class="material-symbols-outlined">library_books</span>Library</button>
+        <button onclick="switchTab('inbox')" id="nav-inbox" class="active"><span class="material-symbols-outlined">inbox</span>Inbox</button>
+    </nav>
 </div>
 
 <!-- SETTINGS MODAL -->
@@ -197,19 +228,19 @@
 </div>
 
 <!-- NATIVE MEDIA READER OVERLAY -->
-<div id="media-modal" class="fullscreen-modal" data-current-img="">
+<div id="media-modal" class="fullscreen-modal" data-current-media-id="" data-current-type="" data-current-source="">
     <div class="modal-header">
         <h3 id="modal-title" style="margin:0; font-size: 18px; max-width: 70%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Reader</h3>
         <button class="icon-btn" onclick="closeModal('media-modal')"><span class="material-symbols-outlined">close</span></button>
     </div>
-    <div class="modal-content" id="modal-body">
+    
+    <div class="modal-content" id="modal-body" style="padding: 10px;">
         
         <div id="modal-audio-ui" style="display:none;">
             <iframe id="main-video" style="width:100%; aspect-ratio:16/9; border-radius:12px; border:none; margin-bottom:15px; display:none;" allowfullscreen></iframe>
             <audio id="main-audio" controls style="width:100%; margin-bottom:15px; display:none;"></audio>
             <button class="text-btn" style="width:100%; background:var(--accent); color:white; padding:12px; border-radius:12px; margin-bottom:15px;" onclick="snipAudio()">✂️ Snip Moment to Inbox</button>
-            <h4 style="margin-top:20px;">Description / Transcript</h4>
-            <div id="transcript-container"></div>
+            <div id="transcript-container" style="padding:0 15px;"></div>
         </div>
 
         <div id="modal-article-ui" style="display:none;">
@@ -217,19 +248,33 @@
         </div>
         
         <div id="modal-ebook-ui" style="display:none;">
-            <div class="reader-controls" style="margin-bottom: 10px;">
-                <button onclick="changeEpubFontSize(-10)">A-</button>
-                <button onclick="changeEpubFontSize(10)">A+</button>
-            </div>
-            <div id="epub-viewer"></div>
             <div class="reader-controls">
+                <button onclick="document.getElementById('toc-dropdown').style.display = document.getElementById('toc-dropdown').style.display === 'block' ? 'none' : 'block'">☰ Chapters</button>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span class="material-symbols-outlined" style="font-size:18px;">light_mode</span>
+                    <input type="range" id="brightness-slider" min="40" max="100" value="100" style="width:80px;" oninput="setEpubBrightness(this.value)">
+                </div>
+                <div>
+                    <button onclick="changeEpubFontSize(-10)" style="padding:4px 10px; font-size:12px;">A-</button>
+                    <button onclick="changeEpubFontSize(10)" style="padding:4px 10px; font-size:12px;">A+</button>
+                </div>
+            </div>
+            
+            <div id="toc-dropdown"></div>
+
+            <div class="epub-container-wrapper">
+                <div id="epub-viewer"></div>
+            </div>
+            
+            <div class="reader-controls" style="margin-top:10px; justify-content:center; gap:20px;">
                 <button onclick="rendition.prev()">← Prev</button>
-                <span style="color:var(--sub); font-size:12px;">Swipe to turn pages</span>
                 <button onclick="rendition.next()">Next →</button>
             </div>
         </div>
         
-        <div id="modal-pdf-ui" style="display:none;"><iframe id="pdf-viewer"></iframe></div>
+        <div id="modal-pdf-ui" style="display:none;">
+            <iframe id="pdf-viewer"></iframe>
+        </div>
     </div>
     <button id="floating-highlight" onmousedown="saveSelectedText(event)">📝 Save Highlight</button>
 </div>
@@ -243,12 +288,6 @@
     <div class="modal-content" id="srs-body"></div>
 </div>
 
-<nav>
-    <button onclick="switchTab('feed')" id="nav-feed"><span class="material-symbols-outlined">rss_feed</span>Feed</button>
-    <button onclick="switchTab('explore')" id="nav-explore"><span class="material-symbols-outlined">library_books</span>Library</button>
-    <button onclick="switchTab('inbox')" id="nav-inbox" class="active"><span class="material-symbols-outlined">inbox</span>Inbox</button>
-</nav>
-
 <script>
     // --- INIT DB & SETTINGS ---
     function initDB() {
@@ -261,6 +300,7 @@
     
     let db = initDB();
     let rendition = null;
+    let epubBook = null;
     let srsQueue = [];
     let epubFontSize = 100;
     
@@ -297,7 +337,6 @@
     function openSettings() {
         const modal = document.getElementById('settings-modal');
         modal.style.display = 'flex';
-        document.body.classList.add('modal-open');
         setTimeout(() => modal.classList.add('open'), 10);
     }
 
@@ -315,10 +354,10 @@
     function closeModal(id) {
         const m = document.getElementById(id);
         m.classList.remove('open');
-        document.body.classList.remove('modal-open');
         if(id === 'media-modal') {
             document.getElementById('main-audio').pause();
             document.getElementById('main-video').src = '';
+            document.getElementById('toc-dropdown').style.display = 'none';
         }
         setTimeout(() => { m.style.display = 'none'; }, 300);
     }
@@ -333,18 +372,13 @@
         list.innerHTML = "";
         selectedItems = [];
 
-        // Subs
         if (filter === 'all' || filter === 'subs') {
-            db.subs.forEach((s, i) => {
-                list.innerHTML += createLibraryCard('sub', i, s.title, 'Subscription');
-            });
+            db.subs.forEach((s, i) => { list.innerHTML += createLibraryCard('sub', i, s.title, 'Subscription'); });
         }
-        // Local Media (Ebooks / PDFs)
         if (filter === 'all' || filter === 'epub' || filter === 'pdf') {
             db.localMedia.forEach((m, i) => {
                 if(filter !== 'all' && filter !== m.type) return;
-                // Count highlights
-                const hlCount = db.notes.filter(n => n.source === m.name).length;
+                const hlCount = db.notes.filter(n => n.mediaId === m.id).length;
                 list.innerHTML += createLibraryCard('media', i, m.name, `${m.type.toUpperCase()} • ${hlCount} Highlights`, m.id);
             });
         }
@@ -356,7 +390,7 @@
         return `
             <div class="glass-card" id="lib-card-${type}-${index}" ${clickAction} style="${type==='sub'?'cursor:default;':''}">
                 <div class="checkbox-overlay" onclick="event.stopPropagation(); toggleSelect('${type}', ${index})"></div>
-                <span class="item-title">${title}</span>
+                <span class="item-title" style="margin-right:20px;">${title}</span>
                 <span class="item-meta">${meta}</span>
             </div>
         `;
@@ -366,17 +400,11 @@
         isEditMode = !isEditMode;
         const list = document.getElementById('library-list');
         const btn = document.getElementById('bulk-delete-btn');
-        
         if (isEditMode) {
-            list.classList.add('edit-mode');
-            btn.style.display = 'block';
-            document.getElementById('edit-lib-btn').innerText = "Done";
+            list.classList.add('edit-mode'); btn.style.display = 'block'; document.getElementById('edit-lib-btn').innerText = "Done";
         } else {
-            list.classList.remove('edit-mode');
-            btn.style.display = 'none';
-            document.getElementById('edit-lib-btn').innerText = "Edit";
-            selectedItems = [];
-            renderLibrary(); // clear selections visually
+            list.classList.remove('edit-mode'); btn.style.display = 'none'; document.getElementById('edit-lib-btn').innerText = "Edit";
+            selectedItems = []; renderLibrary(); 
         }
     }
 
@@ -384,11 +412,9 @@
         const card = document.getElementById(`lib-card-${type}-${index}`);
         const id = `${type}-${index}`;
         if (selectedItems.includes(id)) {
-            selectedItems = selectedItems.filter(i => i !== id);
-            card.classList.remove('selected');
+            selectedItems = selectedItems.filter(i => i !== id); card.classList.remove('selected');
         } else {
-            selectedItems.push(id);
-            card.classList.add('selected');
+            selectedItems.push(id); card.classList.add('selected');
         }
         document.getElementById('bulk-delete-btn').innerText = `Delete (${selectedItems.length})`;
     }
@@ -396,58 +422,50 @@
     async function deleteSelectedItems() {
         if(selectedItems.length === 0) return;
         if(!confirm(`Delete ${selectedItems.length} items?`)) return;
-
-        // Sort descending so index deletion doesn't shift remaining targets
         const subsToDelete = selectedItems.filter(id => id.startsWith('sub-')).map(id => parseInt(id.split('-')[1])).sort((a,b)=>b-a);
         const mediaToDelete = selectedItems.filter(id => id.startsWith('media-')).map(id => parseInt(id.split('-')[1])).sort((a,b)=>b-a);
 
         subsToDelete.forEach(i => db.subs.splice(i, 1));
-        
         for (let i of mediaToDelete) {
             const media = db.localMedia[i];
             await localforage.removeItem('media_' + media.id);
             db.localMedia.splice(i, 1);
         }
-
-        save();
-        toggleLibraryEditMode(); // exit edit mode
-        renderLibrary();
+        save(); toggleLibraryEditMode(); renderLibrary();
     }
 
     // --- LOCAL EBOOK & PDF STORAGE ---
     async function openAndSaveLocalFile(e) {
         const file = e.target.files[0];
         if (!file) return;
-
         const id = Date.now().toString();
         const type = file.name.toLowerCase().endsWith('.pdf') ? 'pdf' : 'epub';
         
-        // Save to permanent offline storage
         await localforage.setItem('media_' + id, file);
         db.localMedia.push({ id, name: file.name, type, date: new Date().toISOString() });
         save();
-        
         document.getElementById('library-filter').value = type;
-        renderLibrary();
-        alert(`${file.name} added to Library!`);
+        renderLibrary(); alert(`${file.name} added to Library!`);
     }
 
-    async function loadSavedMedia(id, title) {
+    async function loadSavedMedia(id, title, jumpTarget = null) {
         const file = await localforage.getItem('media_' + id);
-        if(!file) return alert("File not found. It may have been cleared from browser cache.");
+        if(!file) return alert("File not found on device.");
         
         const modal = document.getElementById('media-modal');
         modal.style.display = 'flex';
-        document.body.classList.add('modal-open');
         setTimeout(() => modal.classList.add('open'), 10);
         
         document.getElementById('modal-title').innerText = title;
-        modal.dataset.currentImg = "";
+        modal.dataset.currentMediaId = id;
+        modal.dataset.currentType = file.name.toLowerCase().endsWith('.pdf') ? 'pdf' : 'epub';
+        modal.dataset.currentSource = title;
         
         document.getElementById('modal-audio-ui').style.display = 'none';
         document.getElementById('modal-article-ui').style.display = 'none';
         document.getElementById('modal-ebook-ui').style.display = 'none';
         document.getElementById('modal-pdf-ui').style.display = 'none';
+        document.getElementById('toc-dropdown').style.display = 'none';
 
         if(file.name.toLowerCase().endsWith('.pdf')) {
             document.getElementById('modal-pdf-ui').style.display = 'block';
@@ -458,9 +476,19 @@
             
             const reader = new FileReader();
             reader.onload = function(event) {
-                const book = ePub(event.target.result);
-                rendition = book.renderTo("epub-viewer", { width: "100%", height: "100%", manager: "continuous", flow: "paginated" });
-                rendition.display();
+                epubBook = ePub(event.target.result);
+                rendition = epubBook.renderTo("epub-viewer", { width: "100%", height: "100%", manager: "continuous", flow: "paginated" });
+                
+                if (jumpTarget) {
+                    rendition.display(jumpTarget);
+                } else {
+                    rendition.display();
+                }
+
+                epubBook.loaded.navigation.then(function(toc){
+                    let tocHtml = toc.map(chapter => `<div class="toc-item" onclick="rendition.display('${chapter.href}'); document.getElementById('toc-dropdown').style.display='none';">${chapter.label}</div>`).join('');
+                    document.getElementById('toc-dropdown').innerHTML = tocHtml;
+                });
                 
                 // Swipe to turn page
                 let touchstartX = 0; let touchendX = 0;
@@ -470,16 +498,26 @@
                     if (touchendX < touchstartX - 50) rendition.next();
                     if (touchendX > touchstartX + 50) rendition.prev();
                 });
+                
+                // Highlight interceptor inside iframe
+                rendition.on("selected", (cfiRange) => {
+                    const text = window.getSelection().toString() || "EPUB Highlight Saved";
+                    const btn = document.getElementById('floating-highlight');
+                    btn.style.display = 'block';
+                    btn.dataset.cfi = cfiRange;
+                    btn.dataset.text = text;
+                });
             };
             reader.readAsArrayBuffer(file);
         }
     }
 
     function changeEpubFontSize(amount) {
-        if(rendition) {
-            epubFontSize += amount;
-            rendition.themes.fontSize(epubFontSize + "%");
-        }
+        if(rendition) { epubFontSize += amount; rendition.themes.fontSize(epubFontSize + "%"); }
+    }
+
+    function setEpubBrightness(val) {
+        document.getElementById('epub-viewer').style.filter = `brightness(${val}%)`;
     }
 
     // --- EXPLORE SEARCH & OPML ---
@@ -503,12 +541,10 @@
             xml.querySelectorAll('outline').forEach(o => {
                 let url = sanitizeFeedUrl(o.getAttribute('xmlUrl') || o.getAttribute('xmlurl') || o.getAttribute('url') || o.getAttribute('htmlUrl'));
                 if(url && !db.subs.find(s => s.url === url)) {
-                    db.subs.push({ title: o.getAttribute('title') || o.getAttribute('text') || "Feed", url });
-                    count++;
+                    db.subs.push({ title: o.getAttribute('title') || o.getAttribute('text') || "Feed", url }); count++;
                 }
             });
-            save(); alert(`Imported ${count} feeds!`);
-            closeModal('settings-modal');
+            save(); alert(`Imported ${count} feeds!`); closeModal('settings-modal');
             if (document.getElementById('view-explore').classList.contains('active')) renderLibrary();
         };
         reader.readAsText(file);
@@ -518,8 +554,7 @@
         const q = document.getElementById('lib-search').value.trim();
         const type = document.getElementById('search-type').value;
         const resDiv = document.getElementById('search-results');
-        if(!q) return;
-        resDiv.innerHTML = "Searching...";
+        if(!q) return; resDiv.innerHTML = "Searching...";
 
         try {
             resDiv.innerHTML = "";
@@ -529,11 +564,7 @@
                 const res = await fetch(`https://itunes.apple.com/search?media=podcast&term=${encodeURIComponent(q)}`);
                 const data = await res.json();
                 data.results.slice(0, 5).forEach(pod => {
-                    resDiv.innerHTML += `
-                        <div class="glass-card" style="display:flex; justify-content:space-between; align-items:center; padding:15px;">
-                            <div><span class="item-title">${pod.collectionName}</span><span class="item-meta">Podcast</span></div>
-                            <button class="text-btn" onclick="addSubscription('${pod.collectionName.replace(/'/g, "\\'")}', '${pod.feedUrl}')">Add</button>
-                        </div>`;
+                    resDiv.innerHTML += `<div class="glass-card" style="display:flex; justify-content:space-between; align-items:center; padding:15px;"><div><span class="item-title">${pod.collectionName}</span><span class="item-meta">Podcast</span></div><button class="text-btn" onclick="addSubscription('${pod.collectionName.replace(/'/g, "\\'")}', '${pod.feedUrl}')">Add</button></div>`;
                 });
             } 
             else if (type === 'reddit') {
@@ -542,11 +573,7 @@
                 if (data.data && data.data.children) {
                     data.data.children.slice(0, 5).forEach(child => {
                         const sub = child.data.display_name_prefixed;
-                        resDiv.innerHTML += `
-                            <div class="glass-card" style="display:flex; justify-content:space-between; align-items:center; padding:15px;">
-                                <div><span class="item-title">${sub}</span><span class="item-meta">Subreddit</span></div>
-                                <button class="text-btn" onclick="addSubscription('${sub}', 'https://www.reddit.com/${sub}/.rss')">Add</button>
-                            </div>`;
+                        resDiv.innerHTML += `<div class="glass-card" style="display:flex; justify-content:space-between; align-items:center; padding:15px;"><div><span class="item-title">${sub}</span><span class="item-meta">Subreddit</span></div><button class="text-btn" onclick="addSubscription('${sub}', 'https://www.reddit.com/${sub}/.rss')">Add</button></div>`;
                     });
                 }
             } 
@@ -554,16 +581,11 @@
                 const urlToFetch = q.startsWith("@") ? `https://www.youtube.com/${q}` : q;
                 const res = await fetch(proxyBase + encodeURIComponent(urlToFetch));
                 const html = await res.text();
-                
                 const match = html.match(/"externalId":"(UC[^"]+)"/) || html.match(/channel_id=([a-zA-Z0-9_-]+)/);
                 if (match && match[1]) {
                     const titleMatch = html.match(/<title>(.*?) - YouTube<\/title>/);
                     const title = titleMatch ? titleMatch[1].replace(' - YouTube', '') : "YouTube Channel";
-                    resDiv.innerHTML += `
-                        <div class="glass-card" style="display:flex; justify-content:space-between; align-items:center; padding:15px;">
-                            <div><span class="item-title">${title}</span><span class="item-meta">YouTube</span></div>
-                            <button class="text-btn" onclick="addSubscription('${title.replace(/'/g, "\\'")}', 'https://www.youtube.com/feeds/videos.xml?channel_id=${match[1]}')">Add</button>
-                        </div>`;
+                    resDiv.innerHTML += `<div class="glass-card" style="display:flex; justify-content:space-between; align-items:center; padding:15px;"><div><span class="item-title">${title}</span><span class="item-meta">YouTube</span></div><button class="text-btn" onclick="addSubscription('${title.replace(/'/g, "\\'")}', 'https://www.youtube.com/feeds/videos.xml?channel_id=${match[1]}')">Add</button></div>`;
                 } else { resDiv.innerHTML = "Could not locate YouTube ID. Paste exact channel URL."; }
             }
             if(resDiv.innerHTML === "") resDiv.innerHTML = "No results found.";
@@ -578,11 +600,7 @@
         try {
             const res = await fetch('https://en.wikipedia.org/api/rest_v1/page/random/summary');
             const data = await res.json();
-            const item = { 
-                title: data.title, link: data.content_urls.desktop.page, 
-                source: 'Wikipedia Daily', pubDate: new Date().toISOString(), type: 'article',
-                content: data.extract_html, extractedImg: data.thumbnail ? data.thumbnail.source : null
-            };
+            const item = { title: data.title, link: data.content_urls.desktop.page, source: 'Wikipedia Daily', pubDate: new Date().toISOString(), type: 'article', content: data.extract_html, extractedImg: data.thumbnail ? data.thumbnail.source : null };
             localStorage.setItem('daily_wiki', JSON.stringify({date: today, data: item}));
             return item;
         } catch(e) { return null; }
@@ -596,30 +614,21 @@
         if (!force && db.lastSync && (now - db.lastSync < 1800000)) return; 
         
         syncInd.style.display = 'block';
-        db.feedCache = []; // clear to stream fresh
-        
+        db.feedCache = []; 
         let backgroundCache = [];
         let completed = 0;
         const totalReqs = db.subs.length;
 
-        fetchDailyWiki().then(wiki => {
-            if(wiki) { db.feedCache.push(wiki); renderFeedItems(); }
-        });
-
-        if (totalReqs === 0) {
-            syncInd.style.display = 'none';
-            return;
-        }
+        fetchDailyWiki().then(wiki => { if(wiki) { db.feedCache.push(wiki); renderFeedItems(); } });
+        if (totalReqs === 0) { syncInd.style.display = 'none'; return; }
 
         db.subs.forEach(async (sub) => {
             try {
-                // Using corsproxy.io for better raw HTML/XML pass-through
                 const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(sub.url.trim())}`;
                 const res = await fetch(proxyUrl);
                 const textData = await res.text();
                 const parser = new DOMParser();
                 const xmlDoc = parser.parseFromString(textData, "text/xml");
-                
                 const entries = Array.from(xmlDoc.querySelectorAll("item, entry")).slice(0, 5); 
                 
                 entries.forEach((node, index) => {
@@ -628,77 +637,40 @@
                     const link = linkNode ? (linkNode.textContent || linkNode.getAttribute("href")) : "";
                     const pubDateRaw = node.querySelector("pubDate, published, updated")?.textContent || new Date().toISOString();
                     
-                    let content = node.getElementsByTagNameNS("*", "encoded").length > 0 ? 
-                                  node.getElementsByTagNameNS("*", "encoded")[0].textContent : 
-                                  (node.querySelector("description, content")?.textContent || "");
-
+                    let content = node.getElementsByTagNameNS("*", "encoded").length > 0 ? node.getElementsByTagNameNS("*", "encoded")[0].textContent : (node.querySelector("description, content")?.textContent || "");
                     const enclosure = node.querySelector("enclosure");
                     const encUrl = enclosure ? enclosure.getAttribute("url") : null;
                     const encType = enclosure ? enclosure.getAttribute("type") : "";
-
                     const mediaThumb = node.querySelector("thumbnail")?.getAttribute("url") || node.querySelector("image")?.getAttribute("href");
+                    
                     let extractedImg = mediaThumb || (encType.startsWith('image') ? encUrl : null);
-                    if (!extractedImg) {
-                        const imgMatch = content.match(/<img[^>]+src="([^">]+)"/);
-                        if (imgMatch) extractedImg = imgMatch[1];
-                    }
+                    if (!extractedImg) { const imgMatch = content.match(/<img[^>]+src="([^">]+)"/); if (imgMatch) extractedImg = imgMatch[1]; }
 
                     let type = 'article';
-                    if (link.includes('youtube') || (encType && (encType.includes('audio') || encType.includes('video'))) || (encUrl && encUrl.match(/\.(mp3|m4a|wav|mp4)/i))) {
-                        type = 'podcast';
-                    }
+                    if (link.includes('youtube') || (encType && (encType.includes('audio') || encType.includes('video'))) || (encUrl && encUrl.match(/\.(mp3|m4a|wav|mp4)/i))) type = 'podcast';
 
-                    const item = {
-                        title, link, pubDate: pubDateRaw, content, source: sub.title,
-                        extractedImg, type, enclosure: encUrl ? { link: encUrl } : null
-                    };
+                    const item = { title, link, pubDate: pubDateRaw, content, source: sub.title, extractedImg, type, enclosure: encUrl ? { link: encUrl } : null };
 
-                    // Priority rule: Immediately show the 1st (latest) item from every feed. 
-                    // Hide items 2-5 in the background cache for when user hits "Load More"
                     if (index === 0) {
                         db.feedCache.push(item);
-                        // Sort live cache and re-render
-                        db.feedCache.sort((a,b) => {
-                            let tA = new Date(a.pubDate).getTime(); let tB = new Date(b.pubDate).getTime();
-                            if(isNaN(tA)) tA = 0; if(isNaN(tB)) tB = 0; return tB - tA;
-                        });
+                        db.feedCache.sort((a,b) => { let tA = new Date(a.pubDate).getTime(); let tB = new Date(b.pubDate).getTime(); if(isNaN(tA)) tA = 0; if(isNaN(tB)) tB = 0; return tB - tA; });
                         renderFeedItems();
-                    } else {
-                        backgroundCache.push(item);
-                    }
+                    } else { backgroundCache.push(item); }
                 });
-            } catch (e) {
-                // Fail silently
-            } finally {
+            } catch (e) {} 
+            finally {
                 completed++;
                 if(completed === totalReqs) {
-                    // Merge background items into main cache silently
                     db.feedCache = db.feedCache.concat(backgroundCache);
-                    db.feedCache.sort((a,b) => {
-                        let tA = new Date(a.pubDate).getTime(); let tB = new Date(b.pubDate).getTime();
-                        if(isNaN(tA)) tA = 0; if(isNaN(tB)) tB = 0; return tB - tA;
-                    });
-                    
-                    syncInd.style.display = 'none';
-                    db.lastSync = Date.now();
-                    save();
-                } else {
-                    syncInd.innerText = `↻ Streaming posts... (${Math.round((completed/totalReqs)*100)}%)`;
-                }
+                    db.feedCache.sort((a,b) => { let tA = new Date(a.pubDate).getTime(); let tB = new Date(b.pubDate).getTime(); if(isNaN(tA)) tA = 0; if(isNaN(tB)) tB = 0; return tB - tA; });
+                    syncInd.style.display = 'none'; db.lastSync = Date.now(); save();
+                } else { syncInd.innerText = `↻ Streaming posts... (${Math.round((completed/totalReqs)*100)}%)`; }
             }
         });
     }
 
-    function filterFeed(type) {
-        activeFeedFilter = type;
-        displayLimit = db.settings.feedLimit;
-        renderFeedItems();
-    }
-
-    function loadMoreFeeds() {
-        displayLimit += db.settings.feedLimit;
-        renderFeedItems();
-    }
+    function filterFeed(type) { activeFeedFilter = type; displayLimit = db.settings.feedLimit; renderFeedItems(); }
+    function loadMoreFeeds() { displayLimit += db.settings.feedLimit; renderFeedItems(); }
 
     function renderFeedItems() {
         const list = document.getElementById('feed-list');
@@ -716,24 +688,23 @@
             </div>`
         }).join('');
 
-        if (filteredItems.length > displayLimit) {
-            html += `<button class="glass-card" style="width:100%; text-align:center; color:var(--accent); font-weight:bold; cursor:pointer;" onclick="loadMoreFeeds()">Load More ↓</button>`;
-        } else if (itemsToRender.length > 0) {
-            html += `<p style="text-align:center; color:var(--sub); margin-top:20px;">End of feed.</p>`;
-        }
+        if (filteredItems.length > displayLimit) html += `<button class="glass-card" style="width:100%; text-align:center; color:var(--accent); font-weight:bold; cursor:pointer;" onclick="loadMoreFeeds()">Load More ↓</button>`;
+        else if (itemsToRender.length > 0) html += `<p style="text-align:center; color:var(--sub); margin-top:20px;">End of feed.</p>`;
+        
         list.innerHTML = html;
     }
 
-    // --- FULL ARTICLE READER EXTRACTOR ---
+    // --- FULL ARTICLE EXTRACTOR ---
     async function openMediaModal(item) {
         const modal = document.getElementById('media-modal');
         modal.style.display = 'flex';
-        document.body.classList.add('modal-open');
         setTimeout(() => modal.classList.add('open'), 10);
         
         document.getElementById('modal-title').innerText = item.title;
-        modal.dataset.currentImg = item.extractedImg || '';
-
+        modal.dataset.currentType = item.type;
+        modal.dataset.currentSource = item.source;
+        modal.dataset.currentLink = item.link; // Store for jump-back
+        
         const audioUI = document.getElementById('modal-audio-ui');
         const articleUI = document.getElementById('modal-article-ui');
         
@@ -762,70 +733,88 @@
             const articleBody = document.getElementById('article-body');
             
             let contentHtml = item.content || item.description || "<p>No content provided by the feed.</p>";
-            let topImg = item.extractedImg && !contentHtml.includes(item.extractedImg) ? 
-                         `<img src="${item.extractedImg}" style="width:100%; max-height:300px; object-fit:cover; border-radius:12px; margin-bottom:15px;">` : '';
+            let topImg = item.extractedImg && !contentHtml.includes(item.extractedImg) ? `<img src="${item.extractedImg}" style="width:100%; max-height:300px; object-fit:cover; border-radius:12px; margin-bottom:15px;">` : '';
             
-            // Standard RSS view first so user isn't staring at a blank screen
-            articleBody.innerHTML = `
-                ${topImg}
-                <div style="font-size:13px; color:var(--sub); text-align:center; margin-bottom:10px;">Extracting full text...</div>
-                ${contentHtml}
-            `;
+            articleBody.innerHTML = `${topImg}<div style="font-size:13px; color:var(--sub); text-align:center; margin-bottom:10px;">Extracting full text...</div>${contentHtml}`;
 
-            // Background Mozilla Readability Extraction
             try {
                 const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(item.link)}`;
                 const response = await fetch(proxyUrl);
                 const html = await response.text();
-                
                 const doc = new DOMParser().parseFromString(html, 'text/html');
                 const reader = new Readability(doc);
                 const article = reader.parse();
                 
-                if(article && article.textContent.length > 300) {
-                    articleBody.innerHTML = topImg + article.content;
-                } else {
-                    throw new Error("Extracted text too short.");
-                }
+                if(article && article.textContent.length > 300) articleBody.innerHTML = topImg + article.content;
+                else throw new Error("Extracted text too short.");
             } catch(e) {
-                // If extraction fails, leave the RSS snippet and add Bailout button
                 articleBody.innerHTML = `
                     ${topImg}
                     <div style="font-size:13px; color:#FF3B30; text-align:center; margin-bottom:10px;">Full text extraction blocked by publisher.</div>
                     ${contentHtml}
-                    <div style="margin-top: 30px; text-align: center;">
-                        <button class="glass-card" style="width:100%; color:var(--accent); font-weight:bold; border: 1px solid var(--accent); cursor:pointer;" onclick="window.open('${item.link}', '_blank')">
-                            Read Original Webpage
-                        </button>
-                    </div>
+                    <div style="margin-top: 30px; text-align: center;"><button class="glass-card" style="width:100%; color:var(--accent); font-weight:bold; border: 1px solid var(--accent); cursor:pointer;" onclick="window.open('${item.link}', '_blank')">Read Original Webpage</button></div>
                 `;
             }
         }
     }
 
-    // --- HIGHLIGHTING & INBOX ---
+    // --- HIGHLIGHTING & INBOX (WITH DEEP LINKS) ---
     document.addEventListener('selectionchange', () => {
         const text = window.getSelection().toString().trim();
         const btn = document.getElementById('floating-highlight');
         if (text.length > 0 && document.getElementById('media-modal').classList.contains('open')) {
             btn.style.display = 'block';
-        } else { btn.style.display = 'none'; }
+            // Ebook CFI handled inside the epub renderer
+            if(!btn.dataset.cfi) btn.dataset.text = text;
+        } else { 
+            btn.style.display = 'none'; 
+            btn.dataset.cfi = "";
+        }
     });
 
     function saveSelectedText(event) {
         event.preventDefault(); 
-        const text = window.getSelection().toString().trim();
+        const btn = document.getElementById('floating-highlight');
+        const modal = document.getElementById('media-modal');
+        const text = btn.dataset.text || window.getSelection().toString().trim();
+        
         if(text) {
             const source = document.getElementById('modal-title').innerText;
-            const img = document.getElementById('media-modal').dataset.currentImg;
-            saveNote(text, source, img);
+            const type = modal.dataset.currentType;
+            let target = "";
+            
+            if (type === 'epub') target = btn.dataset.cfi;
+            else if (type === 'article') target = modal.dataset.currentLink;
+            
+            saveNote(text, source, type, target, modal.dataset.currentMediaId);
             window.getSelection().removeAllRanges();
-            document.getElementById('floating-highlight').style.display = 'none';
+            btn.style.display = 'none';
         }
     }
 
-    function saveNote(text, source, img = "") {
-        db.notes.push({ id: Date.now(), text, source, img, thoughts: "", date: new Date().toISOString(), reviewCount: 0, interval: 1, ease: 2.5, nextReview: Date.now(), history: [] });
+    function snipAudio() {
+        const modal = document.getElementById('media-modal');
+        const audio = document.getElementById('main-audio');
+        const video = document.getElementById('main-video');
+        let prefix = ""; let target = "";
+        
+        if (audio.style.display === 'block' && audio.src) {
+            prefix = `[${Math.floor(audio.currentTime)}s] `;
+            target = Math.floor(audio.currentTime);
+        } else if (video.style.display === 'block') {
+            prefix = `[YouTube Note] `;
+            target = modal.dataset.currentLink;
+        }
+        
+        const thought = prompt("Enter your note for this media:");
+        if(thought) saveNote(`${prefix}${thought}`, document.getElementById('modal-title').innerText, 'podcast', target);
+    }
+
+    function saveNote(text, source, type, linkTarget, mediaId = null) {
+        db.notes.push({ 
+            id: Date.now().toString(), text, source, type, linkTarget, mediaId, thoughts: "", 
+            date: new Date().toISOString(), reviewCount: 0, interval: 1, ease: 2.5, nextReview: Date.now(), history: [] 
+        });
         save(); alert("Saved to Inbox!"); renderInbox();
     }
 
@@ -833,10 +822,10 @@
         const list = document.getElementById('inbox-list');
         list.innerHTML = db.notes.length ? db.notes.sort((a,b) => b.id - a.id).map(n => `
             <div class="glass-card" style="cursor:default;">
-                ${n.img ? `<img src="${n.img}" class="inbox-img">` : ''}
+                <button class="jump-btn" onclick="jumpToSource('${n.id}')">↗ Source</button>
                 <span class="item-meta">${n.source}</span>
                 <span class="item-title" style="font-size:16px;">${n.text}</span>
-                <div class="user-note" onclick="editThought(${n.id})">
+                <div class="user-note" onclick="editThought('${n.id}')">
                     ${n.thoughts ? `<strong>📝 Notes:</strong><br>${n.thoughts}` : `<span style="color:var(--sub)">📝 Tap to add notes...</span>`}
                 </div>
                 <div style="font-size:12px; color:var(--sub); margin-top:10px;">
@@ -846,20 +835,28 @@
         `).join('') : '<p style="text-align:center; color:var(--sub); margin-top: 40px;">Inbox empty.</p>';
     }
 
+    function jumpToSource(id) {
+        const note = db.notes.find(n => n.id === id);
+        if(!note) return;
+        
+        if(note.type === 'epub') {
+            if(note.mediaId && note.linkTarget) loadSavedMedia(note.mediaId, note.source, note.linkTarget);
+            else alert("Cannot locate original Ebook.");
+        } 
+        else if (note.type === 'article') {
+            if(note.linkTarget) window.open(note.linkTarget, '_blank');
+            else alert("No URL saved for this article.");
+        }
+        else if (note.type === 'podcast') {
+            // Find item in cache and open modal, then skip time (simplified jump for audio)
+            alert(`This note was taken at ${note.linkTarget} seconds. Please open the podcast from your feed.`);
+        }
+    }
+
     function editThought(id) {
         const note = db.notes.find(n => n.id === id);
         const newThoughts = prompt("Add or edit your thoughts:", note.thoughts || "");
         if (newThoughts !== null) { note.thoughts = newThoughts; save(); renderInbox(); }
-    }
-
-    function snipAudio() {
-        const audio = document.getElementById('main-audio');
-        const video = document.getElementById('main-video');
-        let prefix = "";
-        if (audio.style.display === 'block' && audio.src) prefix = `[${Math.floor(audio.currentTime)}s] `;
-        else if (video.style.display === 'block') prefix = `[YouTube Note] `;
-        const thought = prompt("Enter your note for this media:");
-        if(thought) saveNote(`${prefix}${thought}`, document.getElementById('modal-title').innerText, document.getElementById('media-modal').dataset.currentImg);
     }
 
     // --- ENHANCED SRS ENGINE ---
@@ -870,7 +867,6 @@
         
         const modal = document.getElementById('srs-modal');
         modal.style.display = 'flex';
-        document.body.classList.add('modal-open');
         setTimeout(() => modal.classList.add('open'), 10);
         showNextSRS();
     }
@@ -879,35 +875,27 @@
         const body = document.getElementById('srs-body');
         if(srsQueue.length === 0) {
             body.innerHTML = `<h3 style="text-align:center; margin-top:50px;">Review Complete! 🎉</h3>`;
-            setTimeout(() => closeModal('srs-modal'), 1500);
-            renderInbox(); 
-            return;
+            setTimeout(() => closeModal('srs-modal'), 1500); renderInbox(); return;
         }
 
         const note = srsQueue[0];
         const mode = db.settings.srsMode;
         
         let btnsHTML = mode === 2 ? `
-            <button style="background:#FF3B30; cursor:pointer;" onclick="processSRS('hard')">Hard</button>
-            <button style="background:#007AFF; cursor:pointer;" onclick="processSRS('easy')">Easy</button>
+            <button style="background:#FF3B30;" onclick="processSRS('hard')">Hard</button>
+            <button style="background:#007AFF;" onclick="processSRS('easy')">Easy</button>
         ` : `
-            <button style="background:#FF3B30; cursor:pointer;" onclick="processSRS('hard')">Hard</button>
-            <button style="background:#34C759; cursor:pointer;" onclick="processSRS('good')">Good</button>
-            <button style="background:#007AFF; cursor:pointer;" onclick="processSRS('easy')">Easy</button>
+            <button style="background:#FF3B30;" onclick="processSRS('hard')">Hard</button>
+            <button style="background:#34C759;" onclick="processSRS('good')">Good</button>
+            <button style="background:#007AFF;" onclick="processSRS('easy')">Easy</button>
         `;
 
         body.innerHTML = `
             <div class="glass-card">
-                ${note.img ? `<img src="${note.img}" class="inbox-img" style="width:80px; height:80px;">` : ''}
                 <span class="item-meta" style="color:var(--accent);">${note.source}</span>
                 <span class="item-title" style="font-size:18px;">${note.text}</span>
                 ${note.thoughts ? `<div class="user-note">${note.thoughts}</div>` : ''}
-                
-                ${note.history && note.history.length > 0 ? 
-                    `<div style="font-size:11px; color:var(--sub); margin-top:15px; border-top:1px solid var(--border); padding-top:10px;">
-                        <strong>Last Review:</strong> ${new Date(note.history[note.history.length-1].date).toLocaleDateString()} (Grade: ${note.history[note.history.length-1].grade})
-                    </div>` : ''
-                }
+                ${note.history && note.history.length > 0 ? `<div style="font-size:11px; color:var(--sub); margin-top:15px; border-top:1px solid var(--border); padding-top:10px;"><strong>Last Review:</strong> ${new Date(note.history[note.history.length-1].date).toLocaleDateString()} (Grade: ${note.history[note.history.length-1].grade})</div>` : ''}
             </div>
             <p style="text-align:center; margin-top:20px; color:var(--sub);">How well did you remember this?</p>
             <div class="srs-btns">${btnsHTML}</div>
