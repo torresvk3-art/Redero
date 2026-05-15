@@ -71,19 +71,19 @@
         nav button { background: none; border: none; color: var(--sub); font-size: 11px; font-weight: 500; display:flex; flex-direction:column; align-items:center; gap:4px; }
         nav button.active { color: var(--accent); }
 
-        /* --- EXPLORE & INPUT UI --- */
+        /* --- EXPLORE UI --- */
         .search-bar {
             background: var(--surface); border-radius: 12px; padding: 8px 15px; margin-bottom: 20px;
             display: flex; align-items: center; border: 1px solid var(--border);
         }
-        .search-bar select { background: none; border: none; color: var(--accent); font-weight: 600; outline: none; margin-right: 10px; font-size: 15px; }
-        input, select { background: none; border: none; color: var(--text); outline: none; font-size: 16px; }
-        .search-bar input { width: 100%; padding: 10px 0; }
+        .search-bar select, .dropdown-select { background: none; border: none; color: var(--accent); font-weight: 600; outline: none; font-size: 15px; }
+        .search-bar select { margin-right: 10px; }
+        input { background: none; border: none; color: var(--text); width: 100%; outline: none; font-size: 16px; padding: 10px 0; }
         .text-btn { background: none; border: none; color: var(--accent); font-size: 16px; font-weight: 600; cursor: pointer; padding:0;}
 
         .view { display: none; } .view.active { display: block; }
 
-        /* --- MODALS --- */
+        /* --- MODALS (Reader & SRS) --- */
         .fullscreen-modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100dvh;
             background: var(--bg); z-index: 1000; display: none; flex-direction: column;
@@ -99,11 +99,12 @@
         
         #epub-viewer { width: 100%; height: 70vh; background: var(--surface); border-radius: 12px; margin: 10px 0; overflow: hidden; }
         #article-body, #transcript-container { font-size: 18px; line-height: 1.6; color: var(--text); padding: 15px; background: var(--surface); border-radius: 16px; border: 1px solid var(--border); overflow-wrap: break-word;}
+        
         #article-body img, #article-body figure, #article-body iframe { max-width: 100%; height: auto; border-radius: 10px; margin: 15px 0; display: block; }
         #pdf-viewer { width: 100%; height: 80vh; border: none; border-radius: 12px; }
 
         .srs-btns { display: flex; gap: 10px; margin-top: 20px; }
-        .srs-btns button { flex: 1; padding: 15px; border-radius: 12px; border: none; font-weight: bold; font-size: 16px; color: white; cursor: pointer; }
+        .srs-btns button { flex: 1; padding: 15px; border-radius: 12px; border: none; font-weight: bold; font-size: 16px; color: white; }
 
         #floating-highlight {
             display: none; position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
@@ -116,11 +117,7 @@
             border-radius: 10px; border-left: 3px solid var(--accent); font-size: 15px; color: var(--text);
         }
         
-        #sync-indicator { text-align:center; color:var(--accent); font-weight: bold; font-size:13px; padding-bottom:10px; display:none; }
-        
-        /* Settings Form Styles */
-        .setting-row { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid var(--border); }
-        .setting-row select { background: var(--surface); border: 1px solid var(--border); padding: 8px 12px; border-radius: 8px; color: var(--text); }
+        #sync-indicator { text-align:center; color:var(--sub); font-size:13px; padding-bottom:10px; display:none; }
     </style>
 </head>
 <body>
@@ -128,8 +125,8 @@
 <header>
     <h1 id="title">Inbox</h1>
     <div class="header-btns">
+        <button class="icon-btn" onclick="cycleTheme()"><span class="material-symbols-outlined">dark_mode</span></button>
         <button class="icon-btn" onclick="startSRS()"><span class="material-symbols-outlined">psychology</span></button>
-        <button class="icon-btn" onclick="openSettings()"><span class="material-symbols-outlined">settings</span></button>
     </div>
 </header>
 
@@ -140,10 +137,14 @@
             <button class="text-btn" onclick="filterFeed('all')">All</button>
             <button class="text-btn" onclick="filterFeed('podcast')">Media</button>
             <button class="text-btn" onclick="filterFeed('article')">Articles</button>
-            <!-- Manual Sync Button -->
-            <button class="icon-btn" style="margin-left:auto;" onclick="refreshFeed(true)"><span class="material-symbols-outlined">sync</span></button>
+            
+            <select class="dropdown-select" style="margin-left:auto;" id="feed-limit-select" onchange="updateFeedLimit(this.value)">
+                <option value="10">10 / Page</option>
+                <option value="15" selected>15 / Page</option>
+                <option value="25">25 / Page</option>
+            </select>
         </div>
-        <div id="sync-indicator">↻ Streaming posts...</div>
+        <div id="sync-indicator">↻ Syncing latest posts...</div>
         <div id="feed-list"></div>
     </div>
 
@@ -155,7 +156,7 @@
                 <option value="reddit">Reddit</option>
                 <option value="youtube">YouTube</option>
             </select>
-            <input type="text" id="lib-search" placeholder="Search or paste channel...">
+            <input type="text" id="lib-search" placeholder="Search or paste YT channel...">
             <button class="text-btn" onclick="searchExplore()">Find</button>
         </div>
         <div id="search-results"></div>
@@ -182,45 +183,6 @@
     </div>
 </div>
 
-<!-- SETTINGS OVERLAY -->
-<div id="settings-modal" class="fullscreen-modal">
-    <div class="modal-header">
-        <h3 style="margin:0; font-size: 18px;">Settings</h3>
-        <button class="icon-btn" onclick="closeModal('settings-modal')"><span class="material-symbols-outlined">close</span></button>
-    </div>
-    <div class="modal-content">
-        <div class="glass-card" style="padding: 10px 20px;">
-            <div class="setting-row">
-                <strong>Theme</strong>
-                <select id="setting-theme" onchange="applySettings()">
-                    <option value="light">Apple Light</option>
-                    <option value="black">AMOLED Black</option>
-                    <option value="catppuccin">Catppuccin Mocha</option>
-                    <option value="gruvbox">Gruvbox Dark</option>
-                    <option value="solarized">Solarized Dark</option>
-                </select>
-            </div>
-            <div class="setting-row">
-                <strong>Posts per Page</strong>
-                <select id="setting-limit" onchange="applySettings()">
-                    <option value="10">10 Items</option>
-                    <option value="15">15 Items</option>
-                    <option value="25">25 Items</option>
-                    <option value="50">50 Items</option>
-                </select>
-            </div>
-            <div class="setting-row" style="border-bottom:none;">
-                <strong>Review Buttons</strong>
-                <select id="setting-srs" onchange="applySettings()">
-                    <option value="3">3 (Hard, Good, Easy)</option>
-                    <option value="2">2 (Hard, Easy)</option>
-                </select>
-            </div>
-        </div>
-        <p style="color:var(--sub); font-size:13px; text-align:center;">Recall Data is saved locally to this device.</p>
-    </div>
-</div>
-
 <!-- MEDIA READER OVERLAY -->
 <div id="media-modal" class="fullscreen-modal" data-current-img="">
     <div class="modal-header">
@@ -230,8 +192,10 @@
     <div class="modal-content" id="modal-body">
         
         <div id="modal-audio-ui" style="display:none;">
+            <!-- Added specific YouTube iFrame player -->
             <iframe id="main-video" style="width:100%; aspect-ratio:16/9; border-radius:12px; border:none; margin-bottom:15px; display:none;" allowfullscreen></iframe>
             <audio id="main-audio" controls style="width:100%; margin-bottom:15px; display:none;"></audio>
+            
             <button class="text-btn" style="width:100%; background:var(--accent); color:white; padding:12px; border-radius:12px; margin-bottom:15px;" onclick="snipAudio()">✂️ Snip Moment to Inbox</button>
             <h4 style="margin-top:20px;">Description / Transcript</h4>
             <div id="transcript-container"></div>
@@ -268,32 +232,50 @@
 </nav>
 
 <script>
-    // --- DATABASE MIGRATION ---
+    // --- DATABASE & RECOVERY MIGRATION ---
     function initDB() {
         let currentDB = JSON.parse(localStorage.getItem('recall_v3_db'));
+        
         if (!currentDB || !currentDB.notes) {
-            currentDB = { subs: [], notes: [], feedCache: [], lastSync: 0, settings: { theme: 'black', feedLimit: 15, srsMode: 3 } };
+            currentDB = { subs: [], notes: [], feedCache: [] };
+            
+            // Rescue data from older versions of the app
+            const oldKeys = ['things_recall_db', 'omni_db', 'rss_highlights', 'rss_feeds'];
+            oldKeys.forEach(key => {
+                const oldData = JSON.parse(localStorage.getItem(key));
+                if (oldData) {
+                    if (oldData.notes) currentDB.notes.push(...oldData.notes);
+                    if (oldData.subscriptions) currentDB.subs.push(...oldData.subscriptions);
+                    if (oldData.highlights) currentDB.notes.push(...oldData.highlights);
+                }
+            });
+            
+            // Deduplicate recovered notes by ID or text
+            currentDB.notes = currentDB.notes.filter((note, index, self) => 
+                index === self.findIndex((t) => (t.id === note.id || t.text === note.text))
+            );
+            
+            localStorage.setItem('recall_v3_db', JSON.stringify(currentDB));
         }
-        if(!currentDB.settings) currentDB.settings = { theme: 'black', feedLimit: 15, srsMode: 3 };
         return currentDB;
     }
     
     let db = initDB();
+    let themes = ['light', 'black', 'catppuccin', 'gruvbox', 'solarized'];
+    let currentThemeIdx = 0;
     let rendition = null;
     let srsQueue = [];
     
     let activeFeedFilter = 'all';
-    let displayLimit = parseInt(db.settings.feedLimit) || 15;
+    let ITEMS_PER_PAGE = parseInt(localStorage.getItem('feed_limit')) || 15;
+    let displayLimit = ITEMS_PER_PAGE;
+    document.getElementById('feed-limit-select').value = ITEMS_PER_PAGE;
 
-    // Apply Settings on Load
-    document.documentElement.className = 'theme-' + db.settings.theme;
-    document.getElementById('setting-theme').value = db.settings.theme;
-    document.getElementById('setting-limit').value = db.settings.feedLimit;
-    document.getElementById('setting-srs').value = db.settings.srsMode;
+    if (localStorage.getItem('saved_theme')) {
+        document.documentElement.className = 'theme-' + localStorage.getItem('saved_theme');
+        currentThemeIdx = themes.indexOf(localStorage.getItem('saved_theme'));
+    }
 
-    function save() { localStorage.setItem('recall_v3_db', JSON.stringify(db)); }
-
-    // --- NAVIGATION & SETTINGS ---
     function switchTab(tab) {
         document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
         document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
@@ -303,46 +285,26 @@
         let titleMap = { feed: "Feed", explore: "Explore", inbox: "Inbox" };
         document.getElementById('title').innerText = titleMap[tab];
         
-        if(tab === 'feed') refreshFeed(false);
+        if(tab === 'feed') refreshFeed();
         if(tab === 'inbox') renderInbox();
         if(tab === 'explore') renderLibrary();
     }
 
-    function openSettings() {
-        const modal = document.getElementById('settings-modal');
-        modal.style.display = 'flex';
-        setTimeout(() => modal.classList.add('open'), 10);
+    function cycleTheme() {
+        currentThemeIdx = (currentThemeIdx + 1) % themes.length;
+        document.documentElement.className = 'theme-' + themes[currentThemeIdx];
+        localStorage.setItem('saved_theme', themes[currentThemeIdx]);
     }
 
-    function applySettings() {
-        db.settings.theme = document.getElementById('setting-theme').value;
-        db.settings.feedLimit = parseInt(document.getElementById('setting-limit').value);
-        db.settings.srsMode = parseInt(document.getElementById('setting-srs').value);
-        
-        document.documentElement.className = 'theme-' + db.settings.theme;
-        displayLimit = db.settings.feedLimit;
-        save();
-        
-        if (document.getElementById('view-feed').classList.contains('active')) renderFeedItems();
-    }
+    function save() { localStorage.setItem('recall_v3_db', JSON.stringify(db)); }
 
-    function closeModal(id) {
-        const m = document.getElementById(id);
-        m.classList.remove('open');
-        if(id === 'media-modal') {
-            document.getElementById('main-audio').pause();
-            document.getElementById('main-video').src = '';
-        }
-        setTimeout(() => { m.style.display = 'none'; }, 300);
-    }
-
-    // --- EXPLORE & SUBSCRIPTIONS ---
+    // --- EXPLORE LOGIC ---
     function renderLibrary() {
         const list = document.getElementById('sub-list');
         list.innerHTML = db.subs.map((s, i) => `
             <div class="glass-card" style="display:flex; justify-content:space-between; align-items:center; padding: 12px 16px;">
-                <span style="font-weight: 600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${s.title}</span>
-                <button class="text-btn" style="color: #FF3B30; margin-left:10px;" onclick="removeSub(${i})">Del</button>
+                <span style="font-weight: 600;">${s.title}</span>
+                <button class="text-btn" style="color: #FF3B30;" onclick="removeSub(${i})">Delete</button>
             </div>
         `).join('');
     }
@@ -354,35 +316,6 @@
             db.subs.push({ title, url }); save(); renderLibrary();
             document.getElementById('search-results').innerHTML = `<p style="color:var(--accent); font-weight:bold;">Added ${title}!</p>`;
         }
-    }
-
-    function sanitizeFeedUrl(url) {
-        if (!url) return null;
-        if (url.includes('youtube.com/channel/')) return `https://www.youtube.com/feeds/videos.xml?channel_id=${url.split('channel/')[1].split('?')[0].split('/')[0]}`;
-        if (url.includes('youtube.com/user/')) return `https://www.youtube.com/feeds/videos.xml?user=${url.split('user/')[1].split('?')[0].split('/')[0]}`;
-        if (url.match(/reddit\.com\/r\/[a-zA-Z0-9_]+$/)) return url + '/.rss';
-        if (url.match(/reddit\.com\/r\/[a-zA-Z0-9_]+\/?$/)) return url.replace(/\/$/, '') + '/.rss';
-        return url;
-    }
-
-    function importOPML(e) {
-        const file = e.target.files[0];
-        if(!file) return;
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const parser = new DOMParser();
-            const xml = parser.parseFromString(event.target.result, "text/xml");
-            let count = 0;
-            xml.querySelectorAll('outline').forEach(o => {
-                let url = sanitizeFeedUrl(o.getAttribute('xmlUrl') || o.getAttribute('xmlurl') || o.getAttribute('url') || o.getAttribute('htmlUrl'));
-                if(url && !db.subs.find(s => s.url === url)) {
-                    db.subs.push({ title: o.getAttribute('title') || o.getAttribute('text') || "Feed", url });
-                    count++;
-                }
-            });
-            save(); alert(`Imported ${count} feeds!`); renderLibrary(); refreshFeed(true);
-        };
-        reader.readAsText(file);
     }
 
     async function searchExplore() {
@@ -438,58 +371,64 @@
                             <div><span class="item-title">${title}</span><span class="item-meta">YouTube</span></div>
                             <button class="text-btn" onclick="addSubscription('${title.replace(/'/g, "\\'")}', 'https://www.youtube.com/feeds/videos.xml?channel_id=${match[1]}')">Add</button>
                         </div>`;
-                } else { resDiv.innerHTML = "Could not locate YouTube ID. Paste exact channel URL."; }
+                } else {
+                    resDiv.innerHTML = "Could not locate YouTube ID. Paste exact channel URL.";
+                }
             }
             if(resDiv.innerHTML === "") resDiv.innerHTML = "No results found.";
         } catch(e) { resDiv.innerHTML = "Search failed. Check connection."; }
     }
 
-    // --- STREAMING PROGRESSIVE FEED ---
-    async function fetchDailyWiki() {
-        const today = new Date().toISOString().split('T')[0];
-        let cachedWiki = JSON.parse(localStorage.getItem('daily_wiki'));
-        if (cachedWiki && cachedWiki.date === today) return cachedWiki.data;
+    function importOPML(e) {
+        const file = e.target.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const parser = new DOMParser();
+            const xml = parser.parseFromString(event.target.result, "text/xml");
+            xml.querySelectorAll('outline').forEach(o => {
+                const url = o.getAttribute('xmlUrl') || o.getAttribute('xmlurl') || o.getAttribute('url');
+                if(url && !db.subs.find(s => s.url === url)) {
+                    db.subs.push({ title: o.getAttribute('title') || o.getAttribute('text') || "Feed", url });
+                }
+            });
+            save(); alert("OPML Backup Successfully Imported!"); renderLibrary();
+        };
+        reader.readAsText(file);
+    }
+
+    // --- FEED LOGIC ---
+    function updateFeedLimit(val) {
+        ITEMS_PER_PAGE = parseInt(val);
+        localStorage.setItem('feed_limit', ITEMS_PER_PAGE);
+        displayLimit = ITEMS_PER_PAGE;
+        renderFeedItems();
+    }
+
+    async function fetchRandomWiki() {
         try {
             const res = await fetch('https://en.wikipedia.org/api/rest_v1/page/random/summary');
             const data = await res.json();
-            const item = { 
+            return { 
                 title: data.title, link: data.content_urls.desktop.page, 
-                source: 'Wikipedia Daily', pubDate: new Date().toISOString(), type: 'article',
+                source: 'Wikipedia (Daily Random)', pubDate: new Date().toISOString(), type: 'article',
                 content: data.extract_html, extractedImg: data.thumbnail ? data.thumbnail.source : null
             };
-            localStorage.setItem('daily_wiki', JSON.stringify({date: today, data: item}));
-            return item;
         } catch(e) { return null; }
     }
 
-    async function refreshFeed(force = false) {
+    async function refreshFeed() {
         const syncInd = document.getElementById('sync-indicator');
-        
-        // 1. Render Cache Instantly
         if (db.feedCache && db.feedCache.length > 0) renderFeedItems();
-        
-        // 2. Cooldown check (don't sync if less than 30 mins, unless forced)
-        const now = Date.now();
-        if (!force && db.lastSync && (now - db.lastSync < 1800000)) return; 
-        
         syncInd.style.display = 'block';
         
-        // 3. Progressive Streaming Engine
-        // Instead of building a massive array and rendering once, we inject items into db.feedCache and render immediately
-        db.feedCache = []; // Clear cache to stream fresh
-        
+        let streamingItems = [];
         let completed = 0;
-        const totalReqs = db.subs.length;
 
-        // Stream Wiki immediately
-        fetchDailyWiki().then(wiki => {
-            if(wiki) {
-                db.feedCache.push(wiki);
-                renderFeedItems();
-            }
+        fetchRandomWiki().then(wiki => {
+            if(wiki) { streamingItems.push(wiki); updateStreamingUI(streamingItems); }
         });
 
-        // Fire all requests asynchronously, process them exactly as they arrive
         db.subs.forEach(async (sub) => {
             try {
                 const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(sub.url.trim())}`;
@@ -498,7 +437,7 @@
                 const parser = new DOMParser();
                 const xmlDoc = parser.parseFromString(data.contents, "text/xml");
                 
-                const entries = Array.from(xmlDoc.querySelectorAll("item, entry")).slice(0, 5); // Take top 5 from each feed to prioritize recent
+                const entries = Array.from(xmlDoc.querySelectorAll("item, entry")).slice(0, 10);
                 
                 entries.forEach(node => {
                     const title = node.querySelector("title")?.textContent || "Untitled";
@@ -522,48 +461,46 @@
                     }
 
                     let type = 'article';
-                    if (link.includes('youtube') || (encType && (encType.includes('audio') || encType.includes('video'))) || (encUrl && encUrl.match(/\.(mp3|m4a|wav|mp4)/i))) {
+                    if (link.includes('youtube') || 
+                        (encType && (encType.includes('audio') || encType.includes('video'))) || 
+                        (encUrl && encUrl.match(/\.(mp3|m4a|wav|mp4)/i))) {
                         type = 'podcast';
                     }
 
-                    // Push directly to main cache
-                    db.feedCache.push({
+                    streamingItems.push({
                         title, link, pubDate: pubDateRaw, content, source: sub.title,
                         extractedImg, type, enclosure: encUrl ? { link: encUrl } : null
                     });
                 });
-                
-                // Sort the entire cache and render the UI instantly after this specific feed finishes
-                db.feedCache.sort((a,b) => {
-                    let tA = new Date(a.pubDate).getTime(); let tB = new Date(b.pubDate).getTime();
-                    if(isNaN(tA)) tA = 0; if(isNaN(tB)) tB = 0;
-                    return tB - tA;
-                });
-                renderFeedItems();
-
             } catch (e) {
-                // Fail silently for broken feeds
+                // Fail silently
             } finally {
                 completed++;
-                if(completed === totalReqs) {
-                    syncInd.style.display = 'none';
-                    db.lastSync = Date.now();
-                    save();
-                } else {
-                    syncInd.innerText = `↻ Streaming posts... (${Math.round((completed/totalReqs)*100)}%)`;
-                }
+                updateStreamingUI(streamingItems);
+                if (completed === db.subs.length) syncInd.style.display = 'none';
             }
         });
     }
 
+    function updateStreamingUI(items) {
+        db.feedCache = items.sort((a,b) => {
+            let tA = new Date(a.pubDate).getTime();
+            let tB = new Date(b.pubDate).getTime();
+            if(isNaN(tA)) tA = 0;
+            if(isNaN(tB)) tB = 0;
+            return tB - tA;
+        });
+        renderFeedItems();
+    }
+
     function filterFeed(type) {
         activeFeedFilter = type;
-        displayLimit = db.settings.feedLimit;
+        displayLimit = ITEMS_PER_PAGE;
         renderFeedItems();
     }
 
     function loadMoreFeeds() {
-        displayLimit += db.settings.feedLimit;
+        displayLimit += ITEMS_PER_PAGE;
         renderFeedItems();
     }
 
@@ -589,7 +526,17 @@
         list.innerHTML = html;
     }
 
-    // --- READER MODAL ---
+    // --- MODALS & YOUTUBE PLAYER ---
+    function closeModal(id) {
+        const m = document.getElementById(id);
+        m.classList.remove('open');
+        if(id === 'media-modal') {
+            document.getElementById('main-audio').pause();
+            document.getElementById('main-video').src = ''; // Stop YT video from playing in background
+        }
+        setTimeout(() => { m.style.display = 'none'; }, 300);
+    }
+
     function openMediaModal(item) {
         const modal = document.getElementById('media-modal');
         modal.style.display = 'flex';
@@ -613,6 +560,7 @@
             audioEl.style.display = 'none';
             videoEl.style.display = 'none';
             
+            // Check if YouTube link
             if (item.link && (item.link.includes('youtube.com') || item.link.includes('youtu.be'))) {
                 let vidId = '';
                 if(item.link.includes('v=')) vidId = item.link.split('v=')[1].split('&')[0];
@@ -626,6 +574,7 @@
                 audioEl.src = item.enclosure ? item.enclosure.link : '';
                 audioEl.style.display = 'block';
             }
+            
             document.getElementById('transcript-container').innerHTML = item.content || item.description || "No description provided.";
         } 
         else if (item.type === 'article') {
@@ -700,7 +649,7 @@
         db.notes.push({ 
             id: Date.now(), text, source, img, thoughts: "", 
             date: new Date().toISOString(), reviewCount: 0, 
-            interval: 1, ease: 2.5, nextReview: Date.now(), history: [] 
+            interval: 1, ease: 2.5, nextReview: Date.now() 
         });
         save(); alert("Saved to Inbox!"); renderInbox();
     }
@@ -743,7 +692,7 @@
         if(thought) saveNote(`${prefix}${thought}`, document.getElementById('modal-title').innerText, document.getElementById('media-modal').dataset.currentImg);
     }
 
-    // --- ENHANCED SM-2 ENGINE ---
+    // --- SRS ENGINE ---
     function startSRS() {
         const now = Date.now();
         srsQueue = db.notes.filter(n => n.nextReview <= now);
@@ -766,38 +715,18 @@
         }
 
         const note = srsQueue[0];
-        const mode = db.settings.srsMode;
-        
-        let btnsHTML = '';
-        if (mode === 2) {
-            btnsHTML = `
-                <button style="background:#FF3B30; cursor:pointer;" onclick="processSRS('hard')">Hard</button>
-                <button style="background:#007AFF; cursor:pointer;" onclick="processSRS('easy')">Easy</button>
-            `;
-        } else {
-            btnsHTML = `
-                <button style="background:#FF3B30; cursor:pointer;" onclick="processSRS('hard')">Hard</button>
-                <button style="background:#34C759; cursor:pointer;" onclick="processSRS('good')">Good</button>
-                <button style="background:#007AFF; cursor:pointer;" onclick="processSRS('easy')">Easy</button>
-            `;
-        }
-
         body.innerHTML = `
             <div class="glass-card">
                 ${note.img ? `<img src="${note.img}" class="inbox-img" style="width:80px; height:80px;">` : ''}
                 <span class="item-meta" style="color:var(--accent);">${note.source}</span>
                 <span class="item-title" style="font-size:18px;">${note.text}</span>
                 ${note.thoughts ? `<div class="user-note">${note.thoughts}</div>` : ''}
-                
-                ${note.history && note.history.length > 0 ? 
-                    `<div style="font-size:11px; color:var(--sub); margin-top:15px; border-top:1px solid var(--border); padding-top:10px;">
-                        <strong>Last Review:</strong> ${new Date(note.history[note.history.length-1].date).toLocaleDateString()} (Grade: ${note.history[note.history.length-1].grade})
-                    </div>` : ''
-                }
             </div>
             <p style="text-align:center; margin-top:20px; color:var(--sub);">How well did you remember this?</p>
             <div class="srs-btns">
-                ${btnsHTML}
+                <button style="background:#FF3B30; cursor:pointer;" onclick="processSRS('hard')">Hard</button>
+                <button style="background:#34C759; cursor:pointer;" onclick="processSRS('good')">Good</button>
+                <button style="background:#007AFF; cursor:pointer;" onclick="processSRS('easy')">Easy</button>
             </div>
             <p style="text-align:center; margin-top:20px; color:var(--sub); font-size:13px;">${srsQueue.length} remaining</p>
         `;
@@ -807,19 +736,10 @@
         let note = srsQueue.shift();
         let idx = db.notes.findIndex(n => n.id === note.id);
         
-        if(!note.history) note.history = [];
+        if (grade === 'hard') { note.interval = 1; note.ease = Math.max(1.3, note.ease - 0.2); }
+        else if (grade === 'good') { note.interval = Math.max(1, Math.round(note.interval * note.ease)); }
+        else if (grade === 'easy') { note.ease += 0.15; note.interval = Math.max(1, Math.round(note.interval * note.ease * 1.3)); }
         
-        if (grade === 'hard') { 
-            note.interval = 1; 
-            note.ease = Math.max(1.3, note.ease - 0.2); 
-        } else if (grade === 'good') { 
-            note.interval = Math.max(1, Math.round(note.interval * note.ease)); 
-        } else if (grade === 'easy') { 
-            note.ease += 0.15; 
-            note.interval = Math.max(1, Math.round(note.interval * note.ease * 1.3)); 
-        }
-        
-        note.history.push({ date: new Date().toISOString(), grade: grade, interval: note.interval, ease: note.ease });
         note.nextReview = Date.now() + (note.interval * 24 * 60 * 60 * 1000);
         note.reviewCount = (note.reviewCount || 0) + 1;
         
