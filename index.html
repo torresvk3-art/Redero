@@ -13,6 +13,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/epub.js/0.3.88/epub.min.js"></script>
     <script src="https://unpkg.com/@mozilla/readability/Readability.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
+    <!-- YouTube IFrame API for precision snipping -->
+    <script src="https://www.youtube.com/iframe_api"></script>
 
     <style>
         :root { --bg: #F2F2F7; --surface: #FFFFFF; --text: #1C1C1E; --sub: #8E8E93; --accent: #007AFF; --border: #E5E5EA; }
@@ -56,8 +58,9 @@
         .modal-header { padding: max(20px, env(safe-area-inset-top)) 20px 15px 20px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
         .modal-content { flex: 1; overflow-y: auto; padding: 20px; padding-bottom: 60px; -webkit-user-select: text; user-select: text; -webkit-overflow-scrolling: touch; }
         
-        #epub-viewer { width: 100%; height: 100%; background: var(--surface); margin: 0; overflow: hidden; border: none; transition: filter 0.2s ease;}
-        .epub-container-wrapper { height: 70vh; width: 100%; border-radius: 12px; overflow: hidden; margin-top: 10px; }
+        /* EPUB CONTAINER RIGID SIZING */
+        .epub-container-wrapper { height: calc(100dvh - 180px); width: 100%; border-radius: 12px; overflow: hidden; margin-top: 10px; position: relative;}
+        #epub-viewer { width: 100%; height: 100%; background: var(--surface); margin: 0; overflow: hidden; border: none; transition: filter 0.2s ease; position: absolute; top:0; left:0;}
         
         #article-body, #transcript-container { font-size: 18px; line-height: 1.6; color: var(--text); padding: 0 10px; overflow-wrap: break-word;}
         #article-body img, #article-body figure, #article-body iframe { max-width: 100%; height: auto; border-radius: 10px; margin: 15px 0; display: block; }
@@ -88,10 +91,11 @@
         .glass-card.selected .checkbox-overlay { background: #FF3B30; border-color: #FF3B30; }
         #bulk-delete-btn { display: none; background: #FF3B30; color: white; width: 100%; padding: 12px; border-radius: 12px; font-weight: bold; border: none; margin-bottom: 20px; cursor: pointer; }
 
-        /* Notification Settings */
         .day-picker { display: flex; gap: 5px; margin-top: 10px; width: 100%; justify-content: space-between;}
         .day-bubble { width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--surface); border: 1px solid var(--border); font-size: 12px; font-weight: bold; cursor: pointer; color: var(--sub);}
         .day-bubble.active { background: var(--accent); color: white; border-color: var(--accent); }
+        
+        #extract-loader { text-align:center; padding:15px; font-size:14px; color:var(--sub); display:none; }
     </style>
 </head>
 <body>
@@ -251,7 +255,7 @@
     
     <div class="modal-content" id="modal-body" style="padding: 10px;">
         <div id="modal-audio-ui" style="display:none;">
-            <!-- Note: playsinline=0 requests native fullscreen player on iOS Safari -->
+            <!-- YouTube API connected Iframe -->
             <iframe id="main-video" style="width:100%; aspect-ratio:16/9; border-radius:12px; border:none; margin-bottom:15px; display:none;" allowfullscreen></iframe>
             <audio id="main-audio" controls style="width:100%; margin-bottom:15px; display:none;"></audio>
             <button class="text-btn" style="width:100%; background:var(--accent); color:white; padding:12px; border-radius:12px; margin-bottom:15px;" onclick="snipAudio()">✂️ Snip Moment to Inbox</button>
@@ -259,6 +263,7 @@
         </div>
 
         <div id="modal-article-ui" style="display:none;">
+            <div id="extract-loader">Scanning for full text...</div>
             <div id="article-body"></div>
         </div>
         
@@ -279,11 +284,6 @@
 
             <div class="epub-container-wrapper">
                 <div id="epub-viewer"></div>
-            </div>
-            
-            <div class="reader-controls" style="margin-top:10px; justify-content:center; gap:20px;">
-                <button onclick="rendition.prev()">← Prev</button>
-                <button onclick="rendition.next()">Next →</button>
             </div>
         </div>
         
@@ -308,8 +308,6 @@
     function initDB() {
         let currentDB = JSON.parse(localStorage.getItem('recall_v3_db'));
         if (!currentDB || !currentDB.notes) currentDB = { subs: [], notes: [], feedCache: [], localMedia: [], lastSync: 0, settings: {} };
-        
-        // Defaults
         const defSettings = { theme: 'black', feedLimit: 15, srsMode: 3, notifType: 'none', notifDays: [], notifTime: '09:00' };
         currentDB.settings = { ...defSettings, ...(currentDB.settings || {}) };
         if(!currentDB.localMedia) currentDB.localMedia = [];
@@ -319,6 +317,7 @@
     let db = initDB();
     let rendition = null;
     let epubBook = null;
+    let ytPlayer = null; // YouTube Player Instance
     let srsQueue = [];
     let epubFontSize = 100;
     
@@ -342,18 +341,18 @@
         localStorage.setItem('recall_v3_db', JSON.stringify(db)); 
     }
 
+    // --- YT API INIT ---
+    function onYouTubeIframeAPIReady() {
+        // YT API is ready for snipping calls
+    }
+
     // --- NOTIFICATIONS & REMINDERS ---
     function toggleNotifUI() {
         const type = document.getElementById('setting-notif-type').value;
         document.getElementById('notif-days-ui').style.display = type === 'weekly' ? 'flex' : 'none';
-        
-        // Render saved days
         document.querySelectorAll('.day-bubble').forEach(el => el.classList.remove('active'));
         if(type === 'weekly' && db.settings.notifDays) {
-            db.settings.notifDays.forEach(d => {
-                const el = document.getElementById('day-' + d);
-                if(el) el.classList.add('active');
-            });
+            db.settings.notifDays.forEach(d => { const el = document.getElementById('day-' + d); if(el) el.classList.add('active'); });
         }
         save();
     }
@@ -361,13 +360,10 @@
     function toggleDay(dayNum) {
         const el = document.getElementById('day-' + dayNum);
         if(!db.settings.notifDays) db.settings.notifDays = [];
-        
         if (db.settings.notifDays.includes(dayNum)) {
-            db.settings.notifDays = db.settings.notifDays.filter(d => d !== dayNum);
-            el.classList.remove('active');
+            db.settings.notifDays = db.settings.notifDays.filter(d => d !== dayNum); el.classList.remove('active');
         } else {
-            db.settings.notifDays.push(dayNum);
-            el.classList.add('active');
+            db.settings.notifDays.push(dayNum); el.classList.add('active');
         }
         save();
     }
@@ -375,70 +371,34 @@
     function generateCalendarInvite() {
         const type = document.getElementById('setting-notif-type').value;
         if(type === 'none') return alert("Please select Daily or Custom Days first.");
-        
         const time = document.getElementById('setting-notif-time').value.replace(':', '') + '00';
-        
         let rrule = '';
         if (type === 'daily') rrule = 'RRULE:FREQ=DAILY';
         else if (type === 'weekly' && db.settings.notifDays.length > 0) {
             const map = {'0':'SU','1':'MO','2':'TU','3':'WE','4':'TH','5':'FR','6':'SA'};
-            const daysStr = db.settings.notifDays.map(d => map[d]).join(',');
-            rrule = `RRULE:FREQ=WEEKLY;BYDAY=${daysStr}`;
-        } else {
-            return alert("Please select at least one day.");
-        }
+            rrule = `RRULE:FREQ=WEEKLY;BYDAY=${db.settings.notifDays.map(d => map[d]).join(',')}`;
+        } else { return alert("Please select at least one day."); }
 
-        const icsContent = `BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//Recall App//Reminder//EN
-BEGIN:VEVENT
-SUMMARY:Recall Media & SRS Review
-DESCRIPTION:Time to check your new feeds and review your Spaced Repetition notes in Recall.
-DTSTART;TZID=Asia/Kolkata:20240101T${time}
-DTEND;TZID=Asia/Kolkata:20240101T${parseInt(time)+10000}
-${rrule}
-BEGIN:VALARM
-TRIGGER:-PT0M
-ACTION:DISPLAY
-DESCRIPTION:Reminder
-END:VALARM
-END:VEVENT
-END:VCALENDAR`;
-
+        const icsContent = `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Recall App//Reminder//EN\nBEGIN:VEVENT\nSUMMARY:Recall Media & SRS Review\nDESCRIPTION:Time to check your new feeds and review your Spaced Repetition notes in Recall.\nDTSTART;TZID=Asia/Kolkata:20240101T${time}\nDTEND;TZID=Asia/Kolkata:20240101T${parseInt(time)+10000}\n${rrule}\nBEGIN:VALARM\nTRIGGER:-PT0M\nACTION:DISPLAY\nDESCRIPTION:Reminder\nEND:VALARM\nEND:VEVENT\nEND:VCALENDAR`;
         const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
-        const link = document.createElement('a');
-        link.href = window.URL.createObjectURL(blob);
-        link.setAttribute('download', 'Recall_Reminder.ics');
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        const link = document.createElement('a'); link.href = window.URL.createObjectURL(blob); link.setAttribute('download', 'Recall_Reminder.ics');
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
     }
 
     function checkInAppReminders() {
         const type = db.settings.notifType;
         if (type === 'none') return;
-        
-        const now = new Date();
-        const todayStr = now.toISOString().split('T')[0];
-        
-        // Prevent spamming
+        const todayStr = new Date().toISOString().split('T')[0];
         if (db.settings.lastAlertDate === todayStr) return;
         
         let shouldAlert = false;
         if (type === 'daily') shouldAlert = true;
-        else if (type === 'weekly' && db.settings.notifDays.includes(now.getDay().toString())) shouldAlert = true;
+        else if (type === 'weekly' && db.settings.notifDays.includes(new Date().getDay().toString())) shouldAlert = true;
 
         if (shouldAlert) {
             const pendingReviews = db.notes.filter(n => n.nextReview <= Date.now()).length;
-            let msg = "Welcome back! ";
-            if (pendingReviews > 0) msg += `You have ${pendingReviews} notes waiting for review today.`;
-            else msg += "Time to catch up on your latest feeds.";
-            
-            setTimeout(() => {
-                if(confirm(msg + "\n\nStart Review now?")) startSRS();
-                db.settings.lastAlertDate = todayStr;
-                save();
-            }, 1000); // Small delay on app load
+            let msg = "Welcome back! " + (pendingReviews > 0 ? `You have ${pendingReviews} notes waiting for review today.` : "Time to catch up on your latest feeds.");
+            setTimeout(() => { if(confirm(msg + "\n\nStart Review now?")) startSRS(); db.settings.lastAlertDate = todayStr; save(); }, 1000);
         }
     }
 
@@ -449,8 +409,7 @@ END:VCALENDAR`;
         document.getElementById('view-' + tab).classList.add('active');
         document.getElementById('nav-' + tab).classList.add('active');
         
-        let titleMap = { feed: "Feed", explore: "Library", inbox: "Inbox" };
-        document.getElementById('title').innerText = titleMap[tab];
+        document.getElementById('title').innerText = { feed: "Feed", explore: "Library", inbox: "Inbox" }[tab];
         isEditMode = false;
         document.getElementById('library-list').classList.remove('edit-mode');
         document.getElementById('bulk-delete-btn').style.display = 'none';
@@ -472,10 +431,8 @@ END:VCALENDAR`;
         db.settings.feedLimit = parseInt(document.getElementById('setting-limit').value);
         db.settings.srsMode = parseInt(document.getElementById('setting-srs').value);
         save();
-        
         document.documentElement.className = 'theme-' + db.settings.theme;
         displayLimit = db.settings.feedLimit;
-        
         if (document.getElementById('view-feed').classList.contains('active')) renderFeedItems();
     }
 
@@ -486,24 +443,21 @@ END:VCALENDAR`;
         if(id === 'media-modal') {
             document.getElementById('main-audio').pause();
             document.getElementById('main-video').src = '';
+            if(ytPlayer) ytPlayer.destroy();
             document.getElementById('toc-dropdown').style.display = 'none';
+            document.getElementById('epub-viewer').innerHTML = ''; // prevent memory leak
         }
         setTimeout(() => { m.style.display = 'none'; }, 300);
     }
 
-    // --- LIBRARY (SUBS, EBOOKS, PDFS) & BULK EDIT ---
+    // --- LIBRARY & STORAGE ---
     function renderLibrary() {
         const list = document.getElementById('library-list');
         const filter = document.getElementById('library-filter').value;
-        const searchBar = document.getElementById('sub-search-bar');
-        
-        searchBar.style.display = (filter === 'all' || filter === 'subs') ? 'flex' : 'none';
-        list.innerHTML = "";
-        selectedItems = [];
+        document.getElementById('sub-search-bar').style.display = (filter === 'all' || filter === 'subs') ? 'flex' : 'none';
+        list.innerHTML = ""; selectedItems = [];
 
-        if (filter === 'all' || filter === 'subs') {
-            db.subs.forEach((s, i) => { list.innerHTML += createLibraryCard('sub', i, s.title, 'Subscription'); });
-        }
+        if (filter === 'all' || filter === 'subs') db.subs.forEach((s, i) => list.innerHTML += createLibraryCard('sub', i, s.title, 'Subscription'));
         if (filter === 'all' || filter === 'epub' || filter === 'pdf') {
             db.localMedia.forEach((m, i) => {
                 if(filter !== 'all' && filter !== m.type) return;
@@ -521,62 +475,49 @@ END:VCALENDAR`;
                 <div class="checkbox-overlay" onclick="event.stopPropagation(); toggleSelect('${type}', ${index})"></div>
                 <span class="item-title" style="margin-right:20px;">${title}</span>
                 <span class="item-meta">${meta}</span>
-            </div>
-        `;
+            </div>`;
     }
 
     function toggleLibraryEditMode() {
         isEditMode = !isEditMode;
         const list = document.getElementById('library-list');
         const btn = document.getElementById('bulk-delete-btn');
-        if (isEditMode) {
-            list.classList.add('edit-mode'); btn.style.display = 'block'; document.getElementById('edit-lib-btn').innerText = "Done";
-        } else {
-            list.classList.remove('edit-mode'); btn.style.display = 'none'; document.getElementById('edit-lib-btn').innerText = "Edit";
-            selectedItems = []; renderLibrary(); 
-        }
+        if (isEditMode) { list.classList.add('edit-mode'); btn.style.display = 'block'; document.getElementById('edit-lib-btn').innerText = "Done"; } 
+        else { list.classList.remove('edit-mode'); btn.style.display = 'none'; document.getElementById('edit-lib-btn').innerText = "Edit"; selectedItems = []; renderLibrary(); }
     }
 
     function toggleSelect(type, index) {
         const card = document.getElementById(`lib-card-${type}-${index}`);
         const id = `${type}-${index}`;
-        if (selectedItems.includes(id)) {
-            selectedItems = selectedItems.filter(i => i !== id); card.classList.remove('selected');
-        } else {
-            selectedItems.push(id); card.classList.add('selected');
-        }
+        if (selectedItems.includes(id)) { selectedItems = selectedItems.filter(i => i !== id); card.classList.remove('selected'); } 
+        else { selectedItems.push(id); card.classList.add('selected'); }
         document.getElementById('bulk-delete-btn').innerText = `Delete (${selectedItems.length})`;
     }
 
     async function deleteSelectedItems() {
-        if(selectedItems.length === 0) return;
-        if(!confirm(`Delete ${selectedItems.length} items?`)) return;
+        if(selectedItems.length === 0 || !confirm(`Delete ${selectedItems.length} items?`)) return;
         const subsToDelete = selectedItems.filter(id => id.startsWith('sub-')).map(id => parseInt(id.split('-')[1])).sort((a,b)=>b-a);
         const mediaToDelete = selectedItems.filter(id => id.startsWith('media-')).map(id => parseInt(id.split('-')[1])).sort((a,b)=>b-a);
 
         subsToDelete.forEach(i => db.subs.splice(i, 1));
         for (let i of mediaToDelete) {
-            const media = db.localMedia[i];
-            await localforage.removeItem('media_' + media.id);
+            await localforage.removeItem('media_' + db.localMedia[i].id);
             db.localMedia.splice(i, 1);
         }
         save(); toggleLibraryEditMode(); renderLibrary();
     }
 
-    // --- LOCAL EBOOK & PDF STORAGE ---
     async function openAndSaveLocalFile(e) {
         const file = e.target.files[0];
         if (!file) return;
         const id = Date.now().toString();
         const type = file.name.toLowerCase().endsWith('.pdf') ? 'pdf' : 'epub';
-        
         await localforage.setItem('media_' + id, file);
         db.localMedia.push({ id, name: file.name, type, date: new Date().toISOString() });
-        save();
-        document.getElementById('library-filter').value = type;
-        renderLibrary(); alert(`${file.name} added to Library!`);
+        save(); document.getElementById('library-filter').value = type; renderLibrary(); alert(`${file.name} added to Library!`);
     }
 
+    // --- ROBUST EPUB & PDF LOADER ---
     async function loadSavedMedia(id, title, jumpTarget = null) {
         const file = await localforage.getItem('media_' + id);
         if(!file) return alert("File not found on device.");
@@ -601,52 +542,42 @@ END:VCALENDAR`;
             document.getElementById('pdf-viewer').src = URL.createObjectURL(file);
             setTimeout(() => modal.classList.add('open'), 10);
         } else {
+            // EPUB Handling: Fixes the 0x0 bug by delaying render until modal is completely visible
             document.getElementById('modal-ebook-ui').style.display = 'block';
-            document.getElementById('epub-viewer').innerHTML = ''; 
-            
-            // Render EPUB after modal transition to prevent 0x0 bug
             setTimeout(() => {
                 modal.classList.add('open');
                 setTimeout(() => {
-                    epubBook = ePub(file);
+                    const blobUrl = URL.createObjectURL(file);
+                    epubBook = ePub(blobUrl);
                     rendition = epubBook.renderTo("epub-viewer", { width: "100%", height: "100%", manager: "continuous", flow: "paginated" });
                     
                     if (jumpTarget) rendition.display(jumpTarget);
                     else rendition.display();
 
                     epubBook.loaded.navigation.then(function(toc){
-                        let tocHtml = toc.map(chapter => `<div class="toc-item" onclick="rendition.display('${chapter.href}'); document.getElementById('toc-dropdown').style.display='none';">${chapter.label}</div>`).join('');
-                        document.getElementById('toc-dropdown').innerHTML = tocHtml;
+                        document.getElementById('toc-dropdown').innerHTML = toc.map(c => `<div class="toc-item" onclick="rendition.display('${c.href}'); document.getElementById('toc-dropdown').style.display='none';">${c.label}</div>`).join('');
                     });
                     
-                    let touchstartX = 0; let touchendX = 0;
-                    rendition.on('touchstart', ev => { touchstartX = ev.changedTouches[0].screenX; });
+                    let tsX = 0; let teX = 0;
+                    rendition.on('touchstart', ev => { tsX = ev.changedTouches[0].screenX; });
                     rendition.on('touchend', ev => { 
-                        touchendX = ev.changedTouches[0].screenX; 
-                        if (touchendX < touchstartX - 50) rendition.next();
-                        if (touchendX > touchstartX + 50) rendition.prev();
+                        teX = ev.changedTouches[0].screenX; 
+                        if (teX < tsX - 50) rendition.next(); if (teX > tsX + 50) rendition.prev();
                     });
                     
                     rendition.on("selected", (cfiRange) => {
                         const btn = document.getElementById('floating-highlight');
-                        btn.style.display = 'block';
-                        btn.dataset.cfi = cfiRange;
-                        btn.dataset.text = ""; // Force prompt or generic text since iframe blocks direct selection string access sometimes
+                        btn.style.display = 'block'; btn.dataset.cfi = cfiRange; btn.dataset.text = ""; 
                     });
-                }, 350); // Give modal time to calculate height
+                }, 350); 
             }, 10);
         }
     }
 
-    function changeEpubFontSize(amount) {
-        if(rendition) { epubFontSize += amount; rendition.themes.fontSize(epubFontSize + "%"); }
-    }
+    function changeEpubFontSize(amount) { if(rendition) { epubFontSize += amount; rendition.themes.fontSize(epubFontSize + "%"); } }
+    function setEpubBrightness(val) { document.getElementById('epub-viewer').style.filter = `brightness(${val}%)`; }
 
-    function setEpubBrightness(val) {
-        document.getElementById('epub-viewer').style.filter = `brightness(${val}%)`;
-    }
-
-    // --- EXPLORE SEARCH & OPML ---
+    // --- EXPLORE SEARCH ---
     function sanitizeFeedUrl(url) {
         if (!url) return null;
         if (url.includes('youtube.com/channel/')) return `https://www.youtube.com/feeds/videos.xml?channel_id=${url.split('channel/')[1].split('?')[0].split('/')[0]}`;
@@ -666,9 +597,7 @@ END:VCALENDAR`;
             let count = 0;
             xml.querySelectorAll('outline').forEach(o => {
                 let url = sanitizeFeedUrl(o.getAttribute('xmlUrl') || o.getAttribute('xmlurl') || o.getAttribute('url') || o.getAttribute('htmlUrl'));
-                if(url && !db.subs.find(s => s.url === url)) {
-                    db.subs.push({ title: o.getAttribute('title') || o.getAttribute('text') || "Feed", url }); count++;
-                }
+                if(url && !db.subs.find(s => s.url === url)) { db.subs.push({ title: o.getAttribute('title') || o.getAttribute('text') || "Feed", url }); count++; }
             });
             save(); alert(`Imported ${count} feeds!`); closeModal('settings-modal');
             if (document.getElementById('view-explore').classList.contains('active')) renderLibrary();
@@ -695,8 +624,7 @@ END:VCALENDAR`;
             } 
             else if (type === 'reddit') {
                 const res = await fetch(proxyBase + encodeURIComponent(`https://www.reddit.com/subreddits/search.json?q=${encodeURIComponent(q)}`));
-                const jsonRaw = await res.json();
-                const data = JSON.parse(jsonRaw.contents);
+                const data = JSON.parse((await res.json()).contents);
                 if (data.data && data.data.children) {
                     data.data.children.slice(0, 5).forEach(child => {
                         const sub = child.data.display_name_prefixed;
@@ -707,8 +635,7 @@ END:VCALENDAR`;
             else if (type === 'youtube') {
                 const urlToFetch = q.startsWith("@") ? `https://www.youtube.com/${q}` : q;
                 const res = await fetch(proxyBase + encodeURIComponent(urlToFetch));
-                const jsonRaw = await res.json();
-                const html = jsonRaw.contents;
+                const html = (await res.json()).contents;
                 const match = html.match(/"externalId":"(UC[^"]+)"/) || html.match(/channel_id=([a-zA-Z0-9_-]+)/);
                 if (match && match[1]) {
                     const titleMatch = html.match(/<title>(.*?) - YouTube<\/title>/);
@@ -720,7 +647,7 @@ END:VCALENDAR`;
         } catch(e) { resDiv.innerHTML = "Search failed. Check connection."; }
     }
 
-    // --- PRIORITIZED PROGRESSIVE FEED SYNC ---
+    // --- PROGRESSIVE FEED SYNC ---
     async function fetchDailyWiki() {
         const today = new Date().toISOString().split('T')[0];
         let cachedWiki = JSON.parse(localStorage.getItem('daily_wiki'));
@@ -742,22 +669,19 @@ END:VCALENDAR`;
         if (!force && db.lastSync && (now - db.lastSync < 1800000)) return; 
         
         syncInd.style.display = 'block';
-        db.feedCache = []; 
-        let backgroundCache = [];
-        let completed = 0;
-        const totalReqs = db.subs.length;
+        db.feedCache = []; let backgroundCache = []; let completed = 0; const totalReqs = db.subs.length;
 
         fetchDailyWiki().then(wiki => { if(wiki) { db.feedCache.push(wiki); renderFeedItems(); } });
         if (totalReqs === 0) { syncInd.style.display = 'none'; return; }
 
         db.subs.forEach(async (sub) => {
             try {
-                // Safest CORS proxy wrapper to avoid direct XML parse errors
+                // Reverted back to stable allorigins wrapper to avoid corsproxy blocks
                 const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(sub.url.trim())}`;
                 const res = await fetch(proxyUrl);
-                const jsonRaw = await res.json();
+                const data = await res.json();
                 const parser = new DOMParser();
-                const xmlDoc = parser.parseFromString(jsonRaw.contents, "text/xml");
+                const xmlDoc = parser.parseFromString(data.contents, "text/xml");
                 const entries = Array.from(xmlDoc.querySelectorAll("item, entry")).slice(0, 5); 
                 
                 entries.forEach((node, index) => {
@@ -819,11 +743,10 @@ END:VCALENDAR`;
 
         if (filteredItems.length > displayLimit) html += `<button class="glass-card" style="width:100%; text-align:center; color:var(--accent); font-weight:bold; cursor:pointer;" onclick="loadMoreFeeds()">Load More ↓</button>`;
         else if (itemsToRender.length > 0) html += `<p style="text-align:center; color:var(--sub); margin-top:20px;">End of feed.</p>`;
-        
         list.innerHTML = html;
     }
 
-    // --- FULL ARTICLE EXTRACTOR ---
+    // --- INSTANT ARTICLE EXTRACTOR & YOUTUBE ---
     async function openMediaModal(item) {
         const modal = document.getElementById('media-modal');
         modal.style.display = 'flex';
@@ -852,10 +775,11 @@ END:VCALENDAR`;
                 let vidId = '';
                 if(item.link.includes('v=')) vidId = item.link.split('v=')[1].split('&')[0];
                 else if(item.link.includes('youtu.be/')) vidId = item.link.split('youtu.be/')[1].split('?')[0];
+                
                 if(vidId) { 
-                    // playsinline=0 forces native iOS video player
-                    videoEl.src = `https://www.youtube.com/embed/${vidId}?playsinline=0`; 
+                    videoEl.src = `https://www.youtube.com/embed/${vidId}?playsinline=1&enablejsapi=1`; 
                     videoEl.style.display = 'block'; 
+                    setTimeout(() => { if(typeof YT !== 'undefined') ytPlayer = new YT.Player('main-video'); }, 500);
                 }
             } else {
                 audioEl.src = item.enclosure ? item.enclosure.link : '';
@@ -866,12 +790,16 @@ END:VCALENDAR`;
         else if (item.type === 'article') {
             articleUI.style.display = 'block';
             const articleBody = document.getElementById('article-body');
+            const loader = document.getElementById('extract-loader');
             
             let contentHtml = item.content || item.description || "<p>No content provided by the feed.</p>";
             let topImg = item.extractedImg && !contentHtml.includes(item.extractedImg) ? `<img src="${item.extractedImg}" style="width:100%; max-height:300px; object-fit:cover; border-radius:12px; margin-bottom:15px;">` : '';
             
-            articleBody.innerHTML = `${topImg}<div style="font-size:13px; color:var(--sub); text-align:center; margin-bottom:10px;">Extracting full text...</div>${contentHtml}`;
+            // Instantly render RSS snippet
+            articleBody.innerHTML = `${topImg}${contentHtml}<div style="margin-top: 30px; text-align: center;"><button class="glass-card" style="width:100%; color:var(--accent); font-weight:bold; border: 1px solid var(--accent); cursor:pointer;" onclick="window.open('${item.link}', '_blank')">Read Original Webpage</button></div>`;
+            loader.style.display = 'block';
 
+            // Silently fetch full text
             try {
                 const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(item.link)}`;
                 const response = await fetch(proxyUrl);
@@ -880,30 +808,21 @@ END:VCALENDAR`;
                 const reader = new Readability(doc);
                 const article = reader.parse();
                 
-                if(article && article.textContent.length > 300) articleBody.innerHTML = topImg + article.content;
-                else throw new Error("Extracted text too short.");
-            } catch(e) {
-                articleBody.innerHTML = `
-                    ${topImg}
-                    <div style="font-size:13px; color:#FF3B30; text-align:center; margin-bottom:10px;">Full text extraction blocked by publisher.</div>
-                    ${contentHtml}
-                    <div style="margin-top: 30px; text-align: center;"><button class="glass-card" style="width:100%; color:var(--accent); font-weight:bold; border: 1px solid var(--accent); cursor:pointer;" onclick="window.open('${item.link}', '_blank')">Read Original Webpage</button></div>
-                `;
-            }
+                if(article && article.textContent.length > 300) {
+                    articleBody.innerHTML = topImg + article.content;
+                }
+            } catch(e) { } // If it fails, keep the snippet visible
+            finally { loader.style.display = 'none'; }
         }
     }
 
-    // --- HIGHLIGHTING & INBOX (WITH DEEP LINKS) ---
+    // --- HIGHLIGHTING & SNIPPING ---
     document.addEventListener('selectionchange', () => {
         const text = window.getSelection().toString().trim();
         const btn = document.getElementById('floating-highlight');
         if (text.length > 0 && document.getElementById('media-modal').classList.contains('open')) {
-            btn.style.display = 'block';
-            if(!btn.dataset.cfi) btn.dataset.text = text;
-        } else { 
-            btn.style.display = 'none'; 
-            btn.dataset.cfi = "";
-        }
+            btn.style.display = 'block'; if(!btn.dataset.cfi) btn.dataset.text = text;
+        } else { btn.style.display = 'none'; btn.dataset.cfi = ""; }
     });
 
     function saveSelectedText(event) {
@@ -912,21 +831,13 @@ END:VCALENDAR`;
         const modal = document.getElementById('media-modal');
         
         let text = window.getSelection().toString().trim();
-        // If in epub iframe, use the fallback text prompt since we can't reliably get selection string directly cross-origin
-        if(modal.dataset.currentType === 'epub') {
-            text = prompt("Save Highlight/Note for this EPUB selection:") || "EPUB Bookmark";
-        } else {
-            text = btn.dataset.text || text;
-        }
+        if(modal.dataset.currentType === 'epub') text = prompt("Save Highlight/Note for this EPUB selection:") || "EPUB Bookmark";
+        else text = btn.dataset.text || text;
         
         if(text) {
             const source = document.getElementById('modal-title').innerText;
             const type = modal.dataset.currentType;
-            let target = "";
-            
-            if (type === 'epub') target = btn.dataset.cfi;
-            else if (type === 'article') target = modal.dataset.currentLink;
-            
+            let target = type === 'epub' ? btn.dataset.cfi : modal.dataset.currentLink;
             saveNote(text, source, type, target, modal.dataset.currentMediaId, modal.dataset.currentImg);
             window.getSelection().removeAllRanges();
             btn.style.display = 'none';
@@ -937,25 +848,22 @@ END:VCALENDAR`;
         const modal = document.getElementById('media-modal');
         const audio = document.getElementById('main-audio');
         const video = document.getElementById('main-video');
-        let prefix = ""; let target = "";
+        let prefix = ""; let target = modal.dataset.currentLink;
         
         if (audio.style.display === 'block' && audio.src) {
             prefix = `[${Math.floor(audio.currentTime)}s] `;
-            target = Math.floor(audio.currentTime);
         } else if (video.style.display === 'block') {
-            prefix = `[YouTube Note] `;
-            target = modal.dataset.currentLink;
+            if (ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
+                let t = Math.floor(ytPlayer.getCurrentTime());
+                prefix = `[${t}s] `; target += (target.includes('?') ? `&t=${t}s` : `?t=${t}s`);
+            } else { prefix = `[YouTube Note] `; }
         }
-        
         const thought = prompt("Enter your note for this media:");
         if(thought) saveNote(`${prefix}${thought}`, document.getElementById('modal-title').innerText, 'podcast', target, null, modal.dataset.currentImg);
     }
 
     function saveNote(text, source, type, linkTarget, mediaId = null, img = "") {
-        db.notes.push({ 
-            id: Date.now().toString(), text, source, type, linkTarget, mediaId, img, thoughts: "", 
-            date: new Date().toISOString(), reviewCount: 0, interval: 1, ease: 2.5, nextReview: Date.now(), history: [] 
-        });
+        db.notes.push({ id: Date.now().toString(), text, source, type, linkTarget, mediaId, img, thoughts: "", date: new Date().toISOString(), reviewCount: 0, interval: 1, ease: 2.5, nextReview: Date.now(), history: [] });
         save(); alert("Saved to Inbox!"); renderInbox();
     }
 
@@ -983,9 +891,8 @@ END:VCALENDAR`;
         
         if(note.type === 'epub') {
             if(note.mediaId && note.linkTarget) loadSavedMedia(note.mediaId, note.source, note.linkTarget);
-            else alert("Cannot locate original Ebook. It may have been deleted.");
-        } 
-        else if (note.type === 'article' || note.type === 'podcast') {
+            else alert("Cannot locate original Ebook.");
+        } else if (note.type === 'article' || note.type === 'podcast') {
             if(note.linkTarget && isNaN(note.linkTarget)) window.open(note.linkTarget, '_blank');
             else alert("No direct URL saved for this media. Check your feed.");
         }
@@ -1004,10 +911,8 @@ END:VCALENDAR`;
         if(srsQueue.length === 0) return alert("You are all caught up for today!");
         
         const modal = document.getElementById('srs-modal');
-        modal.style.display = 'flex';
-        document.body.classList.add('modal-open');
-        setTimeout(() => modal.classList.add('open'), 10);
-        showNextSRS();
+        modal.style.display = 'flex'; document.body.classList.add('modal-open');
+        setTimeout(() => modal.classList.add('open'), 10); showNextSRS();
     }
 
     function showNextSRS() {
@@ -1018,9 +923,7 @@ END:VCALENDAR`;
         }
 
         const note = srsQueue[0];
-        const mode = db.settings.srsMode;
-        
-        let btnsHTML = mode === 2 ? `
+        let btnsHTML = db.settings.srsMode === 2 ? `
             <button style="background:#FF3B30;" onclick="processSRS('hard')">Hard</button>
             <button style="background:#007AFF;" onclick="processSRS('easy')">Easy</button>
         ` : `
@@ -1059,9 +962,7 @@ END:VCALENDAR`;
         db.notes[idx] = note; save(); showNextSRS();
     }
 
-    // Start App & Check Reminders
-    switchTab('inbox');
-    setTimeout(checkInAppReminders, 1000);
+    switchTab('inbox'); setTimeout(checkInAppReminders, 1000);
 </script>
 </body>
 </html>
