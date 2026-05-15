@@ -99,12 +99,9 @@
         #epub-viewer { width: 100%; height: 70vh; background: var(--surface); border-radius: 12px; margin: 10px 0; overflow: hidden; }
         #article-body, #transcript-container { font-size: 18px; line-height: 1.6; color: var(--text); padding: 15px; background: var(--surface); border-radius: 16px; border: 1px solid var(--border); overflow-wrap: break-word;}
         
-        /* Ensure embedded article images don't break the layout */
         #article-body img, #article-body figure, #article-body iframe { max-width: 100%; height: auto; border-radius: 10px; margin: 15px 0; display: block; }
-        
         #pdf-viewer { width: 100%; height: 80vh; border: none; border-radius: 12px; }
 
-        /* SRS Buttons */
         .srs-btns { display: flex; gap: 10px; margin-top: 20px; }
         .srs-btns button { flex: 1; padding: 15px; border-radius: 12px; border: none; font-weight: bold; font-size: 16px; color: white; }
 
@@ -137,7 +134,6 @@
             <button class="text-btn" onclick="renderFeed('all')">All</button>
             <button class="text-btn" onclick="renderFeed('podcast')">Podcasts</button>
             <button class="text-btn" onclick="renderFeed('article')">Articles</button>
-            <button class="text-btn" onclick="fetchRandomWiki()">+ Wiki</button>
         </div>
         <div id="feed-list"></div>
     </div>
@@ -252,7 +248,6 @@
 
     function save() { localStorage.setItem('recall_v3_db', JSON.stringify(db)); }
 
-    // --- EXPLORE & SEARCH LOGIC ---
     function renderLibrary() {
         const list = document.getElementById('sub-list');
         list.innerHTML = db.subs.map((s, i) => `
@@ -351,61 +346,82 @@
         reader.readAsText(file);
     }
 
-    // --- RATE-LIMITED FEED AGGREGATION ---
-    function extractImage(item) {
-        if (item.thumbnail) return item.thumbnail;
-        if (item.enclosure && item.enclosure.type && item.enclosure.type.startsWith('image')) return item.enclosure.link;
-        const match = (item.content || item.description || "").match(/<img[^>]+src="([^">]+)"/);
-        return match ? match[1] : null;
+    // --- LOCAL XML PARSER (BYPASSES RATE LIMITS) ---
+    async function fetchRandomWiki() {
+        try {
+            const res = await fetch('https://en.wikipedia.org/api/rest_v1/page/random/summary');
+            const data = await res.json();
+            return { 
+                title: data.title, link: data.content_urls.desktop.page, 
+                source: 'Wikipedia (Daily Random)', pubDate: new Date().toISOString(), type: 'article',
+                content: data.extract_html, extractedImg: data.thumbnail ? data.thumbnail.source : null
+            };
+        } catch(e) { return null; }
     }
 
     async function refreshFeed() {
         const list = document.getElementById('feed-list');
-        list.innerHTML = "<p style='text-align:center; color:var(--sub); margin-top:20px;'>Updating your feed...</p>";
+        list.innerHTML = "<p style='text-align:center; color:var(--sub); margin-top:20px;'>Syncing feeds directly...</p>";
         
         let allItems = [];
-        const batchSize = 10; 
         
-        try {
-            for (let i = 0; i < db.subs.length; i += batchSize) {
-                const batch = db.subs.slice(i, i + batchSize);
-                const fetchPromises = batch.map(async (sub) => {
-                    try {
-                        const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(sub.url.trim())}`);
-                        if (!res.ok) return [];
-                        const data = await res.json();
-                        if(data.status === 'ok') {
-                            return data.items.map(item => {
-                                // Robust podcast logic
-                                let type = 'article';
-                                if (item.link.includes('youtube') || 
-                                    (item.enclosure && item.enclosure.link && 
-                                    (String(item.enclosure.type).includes('audio') || String(item.enclosure.type).includes('video') || item.enclosure.link.match(/\.(mp3|m4a|wav|mp4)/i)))
-                                ) {
-                                    type = 'podcast';
-                                }
+        // Fetch Wikipedia silently
+        const wikiPost = await fetchRandomWiki();
+        if (wikiPost) allItems.push(wikiPost);
 
-                                return {
-                                    ...item, 
-                                    source: sub.title,
-                                    extractedImg: extractImage(item),
-                                    type: type
-                                };
-                            });
-                        }
-                    } catch (e) { return []; }
-                    return [];
-                });
+        // Fetch user subscriptions bypassing rss2json completely
+        for (let sub of db.subs) {
+            try {
+                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(sub.url.trim())}`;
+                const res = await fetch(proxyUrl);
+                const data = await res.json();
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(data.contents, "text/xml");
                 
-                const results = await Promise.all(fetchPromises);
-                allItems.push(...results.flat());
+                const entries = Array.from(xmlDoc.querySelectorAll("item, entry")).slice(0, 5); // top 5 per feed
+                
+                entries.forEach(node => {
+                    const title = node.querySelector("title")?.textContent || "Untitled";
+                    const linkNode = node.querySelector("link");
+                    const link = linkNode ? (linkNode.textContent || linkNode.getAttribute("href")) : "";
+                    const pubDate = node.querySelector("pubDate, published, updated")?.textContent || new Date().toISOString();
+                    
+                    let content = "";
+                    if (node.getElementsByTagNameNS("*", "encoded").length > 0) {
+                        content = node.getElementsByTagNameNS("*", "encoded")[0].textContent;
+                    } else {
+                        content = node.querySelector("description, content")?.textContent || "";
+                    }
+
+                    const enclosure = node.querySelector("enclosure");
+                    const encUrl = enclosure ? enclosure.getAttribute("url") : null;
+                    const encType = enclosure ? enclosure.getAttribute("type") : "";
+
+                    const mediaThumb = node.querySelector("thumbnail")?.getAttribute("url") || node.querySelector("image")?.getAttribute("href");
+                    
+                    let extractedImg = mediaThumb || (encType.startsWith('image') ? encUrl : null);
+                    if (!extractedImg) {
+                        const imgMatch = content.match(/<img[^>]+src="([^">]+)"/);
+                        if (imgMatch) extractedImg = imgMatch[1];
+                    }
+
+                    let type = 'article';
+                    if (link.includes('youtube') || (encType && (encType.includes('audio') || encType.includes('video'))) || (encUrl && encUrl.match(/\.(mp3|m4a|wav|mp4)/i))) {
+                        type = 'podcast';
+                    }
+
+                    allItems.push({
+                        title, link, pubDate, content, source: sub.title,
+                        extractedImg, type, enclosure: encUrl ? { link: encUrl } : null
+                    });
+                });
+            } catch (e) {
+                console.log("Failed to parse feed:", sub.title);
             }
-            db.feedCache = allItems.sort((a,b) => new Date(b.pubDate) - new Date(a.pubDate));
-            renderFeed('all');
-        } catch (e) {
-            list.innerHTML = "<p style='text-align:center;'>Error loading feeds.</p>";
-            if(db.feedCache.length > 0) renderFeed('all');
         }
+
+        db.feedCache = allItems.sort((a,b) => new Date(b.pubDate) - new Date(a.pubDate));
+        renderFeed('all');
     }
 
     function renderFeed(filter) {
@@ -423,21 +439,6 @@
         }).join('');
     }
 
-    async function fetchRandomWiki() {
-        try {
-            const res = await fetch('https://en.wikipedia.org/api/rest_v1/page/random/summary');
-            const data = await res.json();
-            const item = { 
-                title: data.title, link: data.content_urls.desktop.page, 
-                source: 'Wikipedia', pubDate: new Date().toISOString(), type: 'article',
-                content: data.extract_html, extractedImg: data.thumbnail ? data.thumbnail.source : null
-            };
-            db.feedCache.unshift(item);
-            renderFeed('all');
-        } catch(e) { alert("Wiki connection error."); }
-    }
-
-    // --- MODALS ---
     function closeModal(id) {
         const m = document.getElementById(id);
         m.classList.remove('open');
@@ -451,7 +452,7 @@
         setTimeout(() => modal.classList.add('open'), 10);
         
         document.getElementById('modal-title').innerText = item.title;
-        modal.dataset.currentImg = item.extractedImg || ''; // Store for highlight saving
+        modal.dataset.currentImg = item.extractedImg || '';
 
         document.getElementById('modal-audio-ui').style.display = 'none';
         document.getElementById('modal-article-ui').style.display = 'none';
@@ -467,7 +468,6 @@
             document.getElementById('modal-article-ui').style.display = 'block';
             let contentHtml = item.content || item.description || "<p>No content provided by the feed.</p>";
             
-            // Inject the thumbnail if the text doesn't already have the image
             let topImg = item.extractedImg && !contentHtml.includes(item.extractedImg) ? 
                          `<img src="${item.extractedImg}" style="width:100%; max-height:300px; object-fit:cover; border-radius:12px; margin-bottom:15px;">` : '';
             
@@ -510,7 +510,6 @@
         }
     }
 
-    // --- INBOX & HIGHLIGHTING ---
     document.addEventListener('selectionchange', () => {
         const text = window.getSelection().toString().trim();
         const btn = document.getElementById('floating-highlight');
@@ -575,7 +574,6 @@
         if(thought) saveNote(`[${time}s] ${thought}`, document.getElementById('modal-title').innerText, document.getElementById('media-modal').dataset.currentImg);
     }
 
-    // --- SRS ENGINE ---
     function startSRS() {
         const now = Date.now();
         srsQueue = db.notes.filter(n => n.nextReview <= now);
@@ -593,7 +591,7 @@
         if(srsQueue.length === 0) {
             body.innerHTML = `<h3 style="text-align:center; margin-top:50px;">Review Complete! 🎉</h3>`;
             setTimeout(() => closeModal('srs-modal'), 1500);
-            renderInbox(); // Update counts
+            renderInbox(); 
             return;
         }
 
