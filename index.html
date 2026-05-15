@@ -8,10 +8,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     
-    <!-- Icons & Required Libraries (Readability removed for Native Safari Handoff) -->
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.5/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/epub.js/0.3.88/epub.min.js"></script>
+    <script src="https://unpkg.com/@mozilla/readability/Readability.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
     <script src="https://www.youtube.com/iframe_api"></script>
 
@@ -55,10 +55,15 @@
         /* --- MODALS --- */
         .fullscreen-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 1000; display: none; flex-direction: column; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); }
         .fullscreen-modal.open { transform: translateY(0); }
-        .modal-header { padding: max(20px, env(safe-area-inset-top)) 20px 15px 20px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        
+        /* Drag-to-close handler */
+        .modal-header { padding: max(20px, env(safe-area-inset-top)) 20px 15px 20px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; position: relative; }
+        .modal-drag-handle { width: 40px; height: 5px; background: var(--border); border-radius: 3px; position: absolute; top: 8px; left: 50%; transform: translateX(-50%); }
+
         .modal-content { flex: 1; overflow-y: auto; padding: 20px; padding-bottom: 60px; -webkit-user-select: text; user-select: text; -webkit-overflow-scrolling: touch; }
         
-        .epub-container-wrapper { height: 60vh; min-height: 400px; width: 100%; border-radius: 12px; overflow: hidden; margin-top: 10px; position: relative;}
+        /* Fixed EPUB UI */
+        .epub-container-wrapper { height: 65vh; min-height: 400px; width: 100%; border-radius: 12px; overflow: hidden; margin-top: 10px; position: relative;}
         #epub-viewer { width: 100%; height: 100%; background: var(--surface); margin: 0; overflow: hidden; border: none; transition: filter 0.2s ease; position: absolute; top:0; left:0;}
         
         #article-body, #transcript-container { font-size: 18px; line-height: 1.6; color: var(--text); padding: 0 10px; overflow-wrap: break-word;}
@@ -166,8 +171,9 @@
 </div>
 
 <!-- SETTINGS MODAL -->
-<div id="settings-modal" class="fullscreen-modal">
-    <div class="modal-header">
+<div id="settings-modal" class="fullscreen-modal swipe-modal">
+    <div class="modal-header touch-header">
+        <div class="modal-drag-handle"></div>
         <h3 style="margin:0; font-size: 18px;">Settings</h3>
         <button class="icon-btn" onclick="closeModal('settings-modal')"><span class="material-symbols-outlined">close</span></button>
     </div>
@@ -280,8 +286,9 @@
 </div>
 
 <!-- NATIVE MEDIA READER OVERLAY -->
-<div id="media-modal" class="fullscreen-modal" data-current-media-id="" data-current-type="" data-current-source="" data-current-link="">
-    <div class="modal-header">
+<div id="media-modal" class="fullscreen-modal swipe-modal" data-current-media-id="" data-current-type="" data-current-source="" data-current-link="">
+    <div class="modal-header touch-header">
+        <div class="modal-drag-handle"></div>
         <h3 id="modal-title" style="margin:0; font-size: 18px; max-width: 70%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Reader</h3>
         <button class="icon-btn" onclick="closeModal('media-modal')"><span class="material-symbols-outlined">close</span></button>
     </div>
@@ -289,9 +296,6 @@
     <div class="modal-content" id="modal-body" style="padding: 10px;">
         <div id="modal-audio-ui" style="display:none;">
             <div id="yt-container"></div>
-            <!-- Extra Handoff for YouTube iOS Deep Linking -->
-            <button id="yt-handoff-btn" class="glass-card" style="display:none; width:100%; text-align:center; color:var(--accent); font-weight:bold; cursor:pointer; margin-bottom:15px;">↗ Open in YouTube App</button>
-            
             <audio id="main-audio" controls style="width:100%; margin-bottom:15px; display:none;"></audio>
             <button class="text-btn" style="width:100%; background:var(--accent); color:white; padding:12px; border-radius:12px; margin-bottom:15px;" onclick="snipAudio()">✂️ Snip Moment to Inbox</button>
             <div id="transcript-container" style="padding:0 15px;"></div>
@@ -329,8 +333,9 @@
 </div>
 
 <!-- SRS REVIEW OVERLAY -->
-<div id="srs-modal" class="fullscreen-modal">
-    <div class="modal-header">
+<div id="srs-modal" class="fullscreen-modal swipe-modal">
+    <div class="modal-header touch-header">
+        <div class="modal-drag-handle"></div>
         <h3 style="margin:0; font-size: 18px;">Daily Review</h3>
         <button class="icon-btn" onclick="closeModal('srs-modal')"><span class="material-symbols-outlined">close</span></button>
     </div>
@@ -368,6 +373,35 @@
     document.getElementById('setting-srs').value = db.settings.srsMode;
 
     function save() { localStorage.setItem('recall_v3_db', JSON.stringify(db)); }
+
+    // --- TOUCH SWIPE TO CLOSE ---
+    let touchStartY = 0;
+    let swipeModal = null;
+
+    document.querySelectorAll('.touch-header').forEach(header => {
+        header.addEventListener('touchstart', e => {
+            touchStartY = e.touches[0].clientY;
+            swipeModal = header.closest('.swipe-modal');
+            if(swipeModal) swipeModal.style.transition = 'none';
+        }, {passive: true});
+
+        header.addEventListener('touchmove', e => {
+            if(!swipeModal) return;
+            let currentY = e.touches[0].clientY;
+            let diff = currentY - touchStartY;
+            if(diff > 0) swipeModal.style.transform = `translateY(${diff}px)`;
+        }, {passive: true});
+
+        header.addEventListener('touchend', e => {
+            if(!swipeModal) return;
+            let currentY = e.changedTouches[0].clientY;
+            let diff = currentY - touchStartY;
+            swipeModal.style.transition = 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)';
+            if(diff > 120) closeModal(swipeModal.id);
+            else swipeModal.style.transform = 'translateY(0)';
+            swipeModal = null;
+        });
+    });
 
     // --- CALENDAR NOTIFICATIONS ---
     function initNotifUI() {
@@ -448,7 +482,7 @@
 
     function openSettings() {
         const modal = document.getElementById('settings-modal');
-        modal.style.display = 'flex'; document.body.classList.add('modal-open');
+        modal.style.display = 'flex';
         setTimeout(() => modal.classList.add('open'), 10);
     }
 
@@ -464,16 +498,20 @@
 
     function closeModal(id) {
         const m = document.getElementById(id);
-        m.classList.remove('open'); document.body.classList.remove('modal-open');
+        m.style.transform = 'translateY(100%)'; // Enforce CSS animation via JS to prevent snap logic bugs
+        setTimeout(() => { 
+            m.classList.remove('open');
+            m.style.display = 'none'; 
+            m.style.transform = ''; // reset for next open
+        }, 300);
+
         if(id === 'media-modal') {
             document.getElementById('main-audio').pause();
             document.getElementById('yt-container').innerHTML = ''; // Kill iframe securely
-            document.getElementById('yt-handoff-btn').style.display = 'none';
             if(ytPlayer) ytPlayer = null;
             document.getElementById('toc-dropdown').style.display = 'none';
             document.getElementById('epub-viewer').innerHTML = ''; 
         }
-        setTimeout(() => { m.style.display = 'none'; }, 300);
     }
 
     // --- LIBRARY & EDIT ---
@@ -533,13 +571,13 @@
         save(); document.getElementById('library-filter').value = type; renderLibrary(); alert(`${file.name} added to Library!`);
     }
 
-    // --- EPUB FIX (FILE PASSING INSTEAD OF BUFFER) ---
+    // --- FIX: ARRAYBUFFER EPUB LOADER ---
     async function loadSavedMedia(id, title, jumpTarget = null) {
         const file = await localforage.getItem('media_' + id);
         if(!file) return alert("File not found on device.");
         
         const modal = document.getElementById('media-modal');
-        modal.style.display = 'flex'; document.body.classList.add('modal-open');
+        modal.style.display = 'flex';
         
         document.getElementById('modal-title').innerText = title;
         modal.dataset.currentMediaId = id;
@@ -557,35 +595,53 @@
             document.getElementById('pdf-viewer').src = URL.createObjectURL(file);
             setTimeout(() => modal.classList.add('open'), 10);
         } else {
+            // Strict EPUB Setup
             document.getElementById('modal-ebook-ui').style.display = 'block';
             document.getElementById('epub-viewer').innerHTML = ''; 
             
             setTimeout(() => {
                 modal.classList.add('open');
-                // Give iOS time to un-collapse the container height
+                
+                // Allow modal to complete transition so width/height are finalized before rendering
                 setTimeout(() => {
-                    // Pass the File object directly to ePub.js
-                    epubBook = ePub(file);
-                    rendition = epubBook.renderTo("epub-viewer", { width: "100%", height: "100%", manager: "continuous", flow: "paginated" });
-                    
-                    if (jumpTarget) rendition.display(jumpTarget);
-                    else rendition.display();
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        try {
+                            const arrayBuffer = event.target.result;
+                            epubBook = ePub();
+                            epubBook.open(arrayBuffer, "binary").then(() => {
+                                // Hardcode dimensions to prevent 0x0 scaling in iOS iframes
+                                rendition = epubBook.renderTo("epub-viewer", { 
+                                    width: window.innerWidth - 40, 
+                                    height: window.innerHeight * 0.65, 
+                                    manager: "default", 
+                                    flow: "paginated" 
+                                });
+                                
+                                if (jumpTarget) rendition.display(jumpTarget);
+                                else rendition.display();
 
-                    epubBook.loaded.navigation.then(function(toc){
-                        document.getElementById('toc-dropdown').innerHTML = toc.map(c => `<div class="toc-item" onclick="rendition.display('${c.href}'); document.getElementById('toc-dropdown').style.display='none';">${c.label}</div>`).join('');
-                    });
-                    
-                    let tsX = 0; let teX = 0;
-                    rendition.on('touchstart', ev => { tsX = ev.changedTouches[0].screenX; });
-                    rendition.on('touchend', ev => { 
-                        teX = ev.changedTouches[0].screenX; 
-                        if (teX < tsX - 50) rendition.next(); if (teX > tsX + 50) rendition.prev();
-                    });
-                    
-                    rendition.on("selected", (cfiRange) => {
-                        const btn = document.getElementById('floating-highlight');
-                        btn.style.display = 'block'; btn.dataset.cfi = cfiRange; btn.dataset.text = ""; 
-                    });
+                                epubBook.loaded.navigation.then(function(toc){
+                                    document.getElementById('toc-dropdown').innerHTML = toc.map(c => `<div class="toc-item" onclick="rendition.display('${c.href}'); document.getElementById('toc-dropdown').style.display='none';">${c.label}</div>`).join('');
+                                });
+                                
+                                let tsX = 0; let teX = 0;
+                                rendition.on('touchstart', ev => { tsX = ev.changedTouches[0].screenX; });
+                                rendition.on('touchend', ev => { 
+                                    teX = ev.changedTouches[0].screenX; 
+                                    if (teX < tsX - 50) rendition.next(); if (teX > tsX + 50) rendition.prev();
+                                });
+                                
+                                rendition.on("selected", (cfiRange) => {
+                                    const btn = document.getElementById('floating-highlight');
+                                    btn.style.display = 'block'; btn.dataset.cfi = cfiRange; btn.dataset.text = ""; 
+                                });
+                            }).catch(err => alert("EPUB Rendering Error: " + err));
+                        } catch (e) {
+                            alert("Failed to load book data.");
+                        }
+                    };
+                    reader.readAsArrayBuffer(file); // Critical for iOS Safari
                 }, 400); 
             }, 10);
         }
@@ -668,7 +724,7 @@
         } catch(e) { resDiv.innerHTML = "Search failed. Check connection."; }
     }
 
-    // --- TIMEOUT FEED SYNC & SHORTS FILTER ---
+    // --- PROGRESSIVE TIMEOUT FEED SYNC ---
     async function fetchDailyWiki() {
         const today = new Date().toISOString().split('T')[0];
         let cachedWiki = JSON.parse(localStorage.getItem('daily_wiki'));
@@ -723,7 +779,7 @@
                     // Filter YouTube Shorts aggressively
                     if ((link.includes('youtube.com') || link.includes('youtu.be')) && 
                         (title.toLowerCase().includes('#shorts') || title.toLowerCase().includes('shorts'))) {
-                        return; // Skip this iteration completely
+                        return; // Skip Shorts
                     }
                     
                     let content = node.getElementsByTagNameNS("*", "encoded").length > 0 ? node.getElementsByTagNameNS("*", "encoded")[0].textContent : (node.querySelector("description, content")?.textContent || "");
@@ -778,23 +834,29 @@
         list.innerHTML = html;
     }
 
-    // --- NATIVE ARTICLE READER & YOUTUBE ---
+    // --- INSTANT FULL TEXT EXTRACTION & YT PLAYER ---
     async function openMediaModal(item) {
         const modal = document.getElementById('media-modal');
-        modal.style.display = 'flex'; document.body.classList.add('modal-open');
+        modal.style.display = 'flex';
         setTimeout(() => modal.classList.add('open'), 10);
         
         document.getElementById('modal-title').innerText = item.title;
-        modal.dataset.currentType = item.type; modal.dataset.currentSource = item.source; modal.dataset.currentLink = item.link; modal.dataset.currentImg = item.extractedImg || '';
+        modal.dataset.currentType = item.type;
+        modal.dataset.currentSource = item.source;
+        modal.dataset.currentLink = item.link; 
+        modal.dataset.currentImg = item.extractedImg || '';
         
-        const audioUI = document.getElementById('modal-audio-ui'); const articleUI = document.getElementById('modal-article-ui');
-        audioUI.style.display = 'none'; articleUI.style.display = 'none'; document.getElementById('modal-ebook-ui').style.display = 'none'; document.getElementById('modal-pdf-ui').style.display = 'none';
+        const audioUI = document.getElementById('modal-audio-ui');
+        const articleUI = document.getElementById('modal-article-ui');
+        
+        audioUI.style.display = 'none'; articleUI.style.display = 'none';
+        document.getElementById('modal-ebook-ui').style.display = 'none'; document.getElementById('modal-pdf-ui').style.display = 'none';
 
         if(item.type === 'podcast') {
             audioUI.style.display = 'block';
-            const audioEl = document.getElementById('main-audio'); const videoContainer = document.getElementById('yt-container');
-            const ytHandoffBtn = document.getElementById('yt-handoff-btn');
-            audioEl.style.display = 'none'; videoContainer.innerHTML = ''; ytHandoffBtn.style.display = 'none';
+            const audioEl = document.getElementById('main-audio');
+            const videoContainer = document.getElementById('yt-container');
+            audioEl.style.display = 'none'; videoContainer.innerHTML = '';
             
             if (item.link && (item.link.includes('youtube.com') || item.link.includes('youtu.be'))) {
                 let vidId = '';
@@ -803,32 +865,63 @@
                 
                 if(vidId) { 
                     videoContainer.innerHTML = `<iframe id="main-video" src="https://www.youtube.com/embed/${vidId}?playsinline=1&enablejsapi=1" style="width:100%; aspect-ratio:16/9; border-radius:12px; border:none; margin-bottom:15px;" allowfullscreen></iframe>`;
-                    
-                    ytHandoffBtn.style.display = 'block';
-                    ytHandoffBtn.onclick = () => window.open(item.link, '_blank');
-                    
-                    setTimeout(() => { if(typeof YT !== 'undefined' && YT.Player) ytPlayer = new YT.Player('main-video'); }, 1000);
+                    setTimeout(() => { if(typeof YT !== 'undefined' && YT.Player) { ytPlayer = new YT.Player('main-video'); } }, 1000);
                 }
             } else {
-                audioEl.src = item.enclosure ? item.enclosure.link : ''; audioEl.style.display = 'block';
+                audioEl.src = item.enclosure ? item.enclosure.link : '';
+                audioEl.style.display = 'block';
             }
             document.getElementById('transcript-container').innerHTML = item.content || item.description || "No description provided.";
         } 
         else if (item.type === 'article') {
             articleUI.style.display = 'block';
             const articleBody = document.getElementById('article-body');
+            
             let contentHtml = item.content || item.description || "<p>No content provided by the feed.</p>";
             let topImg = item.extractedImg && !contentHtml.includes(item.extractedImg) ? `<img src="${item.extractedImg}" style="width:100%; max-height:300px; object-fit:cover; border-radius:12px; margin-bottom:15px;">` : '';
             
-            // Render RSS snippet instantly, offer Safari Web View handoff
-            articleBody.innerHTML = `
-                ${topImg}
-                ${contentHtml}
-                <div style="margin-top: 30px; text-align: center;">
-                    <button class="primary-btn" onclick="window.open('${item.link}', '_blank')">Open Webpage</button>
-                    <p style="font-size:12px; color:var(--sub); margin-top:5px;">Opens in Safari for full native Reader Mode.</p>
-                </div>
-            `;
+            // Show instant snippet while fetching full
+            articleBody.innerHTML = `${topImg}<div id="extract-status" style="font-size:13px; color:var(--accent); text-align:center; margin-bottom:10px;">Extracting full text...</div>${contentHtml}`;
+
+            try {
+                // Dual proxy strategy for full text extraction
+                const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(item.link)}`;
+                const response = await fetchWithTimeout(proxyUrl, 5000); // Fast attempt
+                const htmlStr = await response.text();
+                
+                const doc = new DOMParser().parseFromString(htmlStr, 'text/html');
+                const reader = new Readability(doc);
+                const article = reader.parse();
+                
+                if(article && article.textContent.length > 300) {
+                    articleBody.innerHTML = topImg + article.content;
+                } else {
+                    throw new Error("Short text");
+                }
+            } catch(e) { 
+                // Fallback attempt with allorigins if CORS proxy blocks it
+                try {
+                    const proxyUrl2 = `https://api.allorigins.win/get?url=${encodeURIComponent(item.link)}`;
+                    const response2 = await fetchWithTimeout(proxyUrl2, 5000);
+                    const jsonRaw2 = await response2.json();
+                    const doc2 = new DOMParser().parseFromString(jsonRaw2.contents, 'text/html');
+                    const reader2 = new Readability(doc2);
+                    const article2 = reader2.parse();
+                    if(article2 && article2.textContent.length > 300) {
+                        articleBody.innerHTML = topImg + article2.content;
+                    } else {
+                        throw new Error("Failed");
+                    }
+                } catch (e2) {
+                    const status = document.getElementById('extract-status');
+                    if(status) {
+                        status.style.color = '#FF3B30';
+                        status.innerText = "Full text extraction blocked by publisher. Snippet provided below.";
+                    }
+                }
+            }
+            // Always append read original button
+            articleBody.innerHTML += `<div style="margin-top: 30px; text-align: center;"><button class="glass-card" style="width:100%; color:var(--accent); font-weight:bold; border: 1px solid var(--accent); cursor:pointer;" onclick="window.open('${item.link}', '_blank')">Read Original Webpage in Safari</button></div>`;
         }
     }
 
@@ -855,7 +948,8 @@
             const type = modal.dataset.currentType;
             let target = type === 'epub' ? btn.dataset.cfi : modal.dataset.currentLink;
             saveNote(text, source, type, target, modal.dataset.currentMediaId, modal.dataset.currentImg);
-            window.getSelection().removeAllRanges(); btn.style.display = 'none';
+            window.getSelection().removeAllRanges();
+            btn.style.display = 'none';
         }
     }
 
@@ -920,7 +1014,7 @@
     function startSRS() {
         const now = Date.now(); srsQueue = db.notes.filter(n => n.nextReview <= now);
         if(srsQueue.length === 0) return alert("You are all caught up for today!");
-        const modal = document.getElementById('srs-modal'); modal.style.display = 'flex'; document.body.classList.add('modal-open'); setTimeout(() => modal.classList.add('open'), 10); showNextSRS();
+        const modal = document.getElementById('srs-modal'); modal.style.display = 'flex'; setTimeout(() => modal.classList.add('open'), 10); showNextSRS();
     }
 
     function showNextSRS() {
