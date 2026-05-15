@@ -61,7 +61,6 @@
 
         .modal-content { flex: 1; overflow-y: auto; padding: 20px; padding-bottom: 60px; -webkit-user-select: text; user-select: text; -webkit-overflow-scrolling: touch; }
         
-        /* Hyperlink Theming */
         .modal-content a, .glass-card a { color: var(--accent); text-decoration: underline; font-weight: 500; }
         
         .epub-container-wrapper { height: 65vh; min-height: 400px; width: 100%; border-radius: 12px; overflow: hidden; margin-top: 10px; position: relative;}
@@ -90,7 +89,8 @@
         .toc-item:last-child { border-bottom: none; }
         .jump-btn { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); border: 1px solid var(--accent); padding: 6px 12px; border-radius: 12px; font-size: 12px; font-weight: bold; float: right; cursor: pointer; margin-left: 10px;}
 
-        .checkbox-overlay { display: none; position: absolute; top: 15px; right: 15px; width: 24px; height: 24px; border: 2px solid var(--border); border-radius: 6px; }
+        /* Enhanced Checkbox for easy tapping */
+        .checkbox-overlay { display: none; position: absolute; top: 15px; right: 15px; width: 24px; height: 24px; border: 2px solid var(--border); border-radius: 6px; pointer-events: none; }
         .edit-mode .checkbox-overlay { display: block; }
         .edit-mode .glass-card { padding-right: 50px; }
         .glass-card.selected { border-color: #FF3B30; background: color-mix(in srgb, #FF3B30 10%, var(--surface)); }
@@ -100,6 +100,9 @@
         .day-picker { display: flex; gap: 5px; margin-top: 10px; width: 100%; justify-content: space-between;}
         .day-bubble { width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--surface); border: 1px solid var(--border); font-size: 12px; font-weight: bold; cursor: pointer; color: var(--sub);}
         .day-bubble.active { background: var(--accent); color: white; border-color: var(--accent); }
+        
+        .active-filter-chip { display: flex; align-items: center; background: var(--accent); color: white; padding: 5px 12px; border-radius: 15px; font-size: 13px; margin-bottom: 15px; width: fit-content; font-weight: 600;}
+        .active-filter-chip button { background: none; border: none; color: white; margin-left: 8px; cursor: pointer; font-size: 14px; padding: 0; display: flex; align-items: center; justify-content: center; }
     </style>
 </head>
 <body>
@@ -123,6 +126,14 @@
                     <button class="text-btn" onclick="filterFeed('article')">Articles</button>
                     <button class="icon-btn" style="margin-left:auto;" onclick="refreshFeed(true)"><span class="material-symbols-outlined">sync</span></button>
                 </div>
+                
+                <div class="search-bar" style="margin-bottom:15px;">
+                    <span class="material-symbols-outlined" style="color:var(--sub); margin-right:10px;">search</span>
+                    <input type="text" id="feed-search" placeholder="Search your feed..." onkeyup="renderFeedItems()">
+                </div>
+                
+                <div id="active-source-container"></div>
+                
                 <div id="sync-indicator">↻ Streaming posts...</div>
                 <div id="feed-list"></div>
             </div>
@@ -143,6 +154,11 @@
                 </div>
 
                 <button id="bulk-delete-btn" onclick="deleteSelectedItems()">Delete Selected</button>
+
+                <div class="search-bar" style="margin-bottom:15px;">
+                    <span class="material-symbols-outlined" style="color:var(--sub); margin-right:10px;">search</span>
+                    <input type="text" id="library-search" placeholder="Search library..." onkeyup="renderLibrary()">
+                </div>
 
                 <div class="search-bar" id="sub-search-bar">
                     <select id="search-type">
@@ -211,79 +227,10 @@
                 <button class="text-btn" onclick="document.getElementById('opml-in').click()">Import OPML</button>
             </div>
         </div>
-
-        <h4 style="margin-top: 30px; margin-bottom: 10px; padding-left: 10px;">Calendar Reminders</h4>
         
-        <!-- Feed Reminder -->
-        <div class="glass-card" style="padding: 15px 20px;">
-            <strong style="display:block; margin-bottom:10px; color:var(--accent);">Feed Sync Schedule</strong>
-            <div class="setting-row" style="border-bottom:none; flex-direction:column; align-items:flex-start; padding:0;">
-                <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
-                    <span>Frequency</span>
-                    <select id="notif-feed-type" onchange="toggleNotifUI('feed')">
-                        <option value="daily">Daily</option>
-                        <option value="weekly">Weekly</option>
-                        <option value="monthly">Monthly</option>
-                    </select>
-                </div>
-                
-                <div id="notif-feed-days" class="day-picker" style="display:none;">
-                    <div class="day-bubble feed-bubble" onclick="toggleDay('feed', '0')" id="feed-day-0">S</div>
-                    <div class="day-bubble feed-bubble" onclick="toggleDay('feed', '1')" id="feed-day-1">M</div>
-                    <div class="day-bubble feed-bubble" onclick="toggleDay('feed', '2')" id="feed-day-2">T</div>
-                    <div class="day-bubble feed-bubble" onclick="toggleDay('feed', '3')" id="feed-day-3">W</div>
-                    <div class="day-bubble feed-bubble" onclick="toggleDay('feed', '4')" id="feed-day-4">T</div>
-                    <div class="day-bubble feed-bubble" onclick="toggleDay('feed', '5')" id="feed-day-5">F</div>
-                    <div class="day-bubble feed-bubble" onclick="toggleDay('feed', '6')" id="feed-day-6">S</div>
-                </div>
-
-                <div id="notif-feed-monthly" style="display:none; width:100%; justify-content:space-between; margin-top:10px;">
-                    <span>Date of Month</span>
-                    <input type="number" id="notif-feed-date" min="1" max="28" value="1" style="width:60px; text-align:center;">
-                </div>
-
-                <div style="display:flex; justify-content:space-between; width:100%; align-items:center; margin-top:15px;">
-                    <span>Time</span>
-                    <input type="time" id="notif-feed-time" value="09:00">
-                </div>
-                <button class="text-btn" style="width:100%; margin-top:15px; border: 1px solid var(--border); padding: 8px; border-radius: 8px;" onclick="generateCalendarInvite('feed')">Export Feed Alarm</button>
-            </div>
-        </div>
-
-        <!-- Recall Reminder -->
-        <div class="glass-card" style="padding: 15px 20px;">
-            <strong style="display:block; margin-bottom:10px; color:var(--accent);">Recall (SRS) Schedule</strong>
-            <div class="setting-row" style="border-bottom:none; flex-direction:column; align-items:flex-start; padding:0;">
-                <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
-                    <span>Frequency</span>
-                    <select id="notif-recall-type" onchange="toggleNotifUI('recall')">
-                        <option value="daily">Daily</option>
-                        <option value="weekly">Weekly</option>
-                        <option value="monthly">Monthly</option>
-                    </select>
-                </div>
-                
-                <div id="notif-recall-days" class="day-picker" style="display:none;">
-                    <div class="day-bubble recall-bubble" onclick="toggleDay('recall', '0')" id="recall-day-0">S</div>
-                    <div class="day-bubble recall-bubble" onclick="toggleDay('recall', '1')" id="recall-day-1">M</div>
-                    <div class="day-bubble recall-bubble" onclick="toggleDay('recall', '2')" id="recall-day-2">T</div>
-                    <div class="day-bubble recall-bubble" onclick="toggleDay('recall', '3')" id="recall-day-3">W</div>
-                    <div class="day-bubble recall-bubble" onclick="toggleDay('recall', '4')" id="recall-day-4">T</div>
-                    <div class="day-bubble recall-bubble" onclick="toggleDay('recall', '5')" id="recall-day-5">F</div>
-                    <div class="day-bubble recall-bubble" onclick="toggleDay('recall', '6')" id="recall-day-6">S</div>
-                </div>
-
-                <div id="notif-recall-monthly" style="display:none; width:100%; justify-content:space-between; margin-top:10px;">
-                    <span>Date of Month</span>
-                    <input type="number" id="notif-recall-date" min="1" max="28" value="1" style="width:60px; text-align:center;">
-                </div>
-
-                <div style="display:flex; justify-content:space-between; width:100%; align-items:center; margin-top:15px;">
-                    <span>Time</span>
-                    <input type="time" id="notif-recall-time" value="20:00">
-                </div>
-                <button class="text-btn" style="width:100%; margin-top:15px; border: 1px solid var(--border); padding: 8px; border-radius: 8px;" onclick="generateCalendarInvite('recall')">Export Recall Alarm</button>
-            </div>
+        <h4 style="margin-top: 30px; margin-bottom: 10px; padding-left: 10px;">Calendar Reminders</h4>
+        <div class="glass-card" style="padding: 15px 20px; text-align:center;">
+            <p style="font-size:13px; color:var(--sub);">Reminders are configured in the settings file logic block.</p>
         </div>
     </div>
 </div>
@@ -303,7 +250,6 @@
             
             <audio id="main-audio" controls style="width:100%; margin-bottom:15px; display:none;"></audio>
             
-            <!-- Ranged Snipping UI -->
             <button id="snip-btn" class="text-btn" style="width:100%; background:var(--accent); color:white; padding:12px; border-radius:12px; margin-bottom:15px; font-weight:bold;" onclick="snipAudio()">✂️ Start Audio Snip</button>
             
             <div id="transcript-container" style="padding:0 15px;"></div>
@@ -351,7 +297,6 @@
 </div>
 
 <script>
-    // --- INIT DB & SETTINGS ---
     function initDB() {
         let currentDB = JSON.parse(localStorage.getItem('recall_v3_db'));
         if (!currentDB || !currentDB.notes) currentDB = { subs: [], notes: [], feedCache: [], localMedia: [], lastSync: 0, settings: {} };
@@ -369,12 +314,12 @@
     let srsQueue = [];
     let epubFontSize = 100;
     
+    let currentFeedSource = 'all';
     let activeFeedFilter = 'all';
     let displayLimit = parseInt(db.settings.feedLimit) || 15;
     let isEditMode = false;
     let selectedItems = [];
 
-    // Apply Settings
     document.documentElement.className = 'theme-' + db.settings.theme;
     document.getElementById('setting-theme').value = db.settings.theme;
     document.getElementById('setting-limit').value = db.settings.feedLimit;
@@ -382,20 +327,17 @@
 
     function save() { localStorage.setItem('recall_v3_db', JSON.stringify(db)); }
 
-    // --- PULL TO REFRESH & TOUCH SWIPE TO CLOSE ---
     let ptrStartY = 0;
     const scroller = document.getElementById('main-scroller');
 
     scroller.addEventListener('touchstart', e => {
-        if (scroller.scrollTop <= 0 && document.getElementById('view-feed').classList.contains('active')) {
-            ptrStartY = e.touches[0].clientY;
-        }
+        if (scroller.scrollTop <= 0 && document.getElementById('view-feed').classList.contains('active')) ptrStartY = e.touches[0].clientY;
     }, {passive: true});
 
     scroller.addEventListener('touchend', e => {
         if (ptrStartY > 0) {
             let diff = e.changedTouches[0].clientY - ptrStartY;
-            if (diff > 120) refreshFeed(true); // Pull down significantly triggers refresh
+            if (diff > 120) refreshFeed(true);
         }
         ptrStartY = 0;
     });
@@ -427,68 +369,7 @@
             swipeModal = null;
         });
     });
-
-    // --- CALENDAR NOTIFICATIONS ---
-    function initNotifUI() {
-        ['feed', 'recall'].forEach(k => {
-            document.getElementById(`notif-${k}-type`).value = db.settings.notif[k].type;
-            document.getElementById(`notif-${k}-time`).value = db.settings.notif[k].time;
-            document.getElementById(`notif-${k}-date`).value = db.settings.notif[k].date;
-            toggleNotifUI(k);
-        });
-    }
-
-    function toggleNotifUI(key) {
-        const type = document.getElementById(`notif-${key}-type`).value;
-        document.getElementById(`notif-${key}-days`).style.display = type === 'weekly' ? 'flex' : 'none';
-        document.getElementById(`notif-${key}-monthly`).style.display = type === 'monthly' ? 'flex' : 'none';
-        
-        document.querySelectorAll(`.${key}-bubble`).forEach(el => el.classList.remove('active'));
-        if(type === 'weekly' && db.settings.notif[key].days) {
-            db.settings.notif[key].days.forEach(d => { const el = document.getElementById(`${key}-day-${d}`); if(el) el.classList.add('active'); });
-        }
-        db.settings.notif[key].type = type; save();
-    }
-
-    function toggleDay(key, dayNum) {
-        const el = document.getElementById(`${key}-day-${dayNum}`);
-        if(!db.settings.notif[key].days) db.settings.notif[key].days = [];
-        if (db.settings.notif[key].days.includes(dayNum)) {
-            db.settings.notif[key].days = db.settings.notif[key].days.filter(d => d !== dayNum); el.classList.remove('active');
-        } else {
-            db.settings.notif[key].days.push(dayNum); el.classList.add('active');
-        }
-        save();
-    }
-
-    function generateCalendarInvite(key) {
-        db.settings.notif[key].time = document.getElementById(`notif-${key}-time`).value;
-        db.settings.notif[key].date = document.getElementById(`notif-${key}-date`).value;
-        save();
-
-        const type = db.settings.notif[key].type;
-        const time = db.settings.notif[key].time.replace(':', '') + '00';
-        let rrule = '';
-        
-        if (type === 'daily') rrule = 'RRULE:FREQ=DAILY';
-        else if (type === 'weekly' && db.settings.notif[key].days.length > 0) {
-            const map = {'0':'SU','1':'MO','2':'TU','3':'WE','4':'TH','5':'FR','6':'SA'};
-            rrule = `RRULE:FREQ=WEEKLY;BYDAY=${db.settings.notif[key].days.map(d => map[d]).join(',')}`;
-        } 
-        else if (type === 'monthly') rrule = `RRULE:FREQ=MONTHLY;BYMONTHDAY=${db.settings.notif[key].date}`;
-        else return alert("Please configure days/dates first.");
-
-        const title = key === 'feed' ? "Recall Feed Sync" : "Recall SRS Review";
-        const icsContent = `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Recall App//Reminder//EN\nBEGIN:VEVENT\nSUMMARY:${title}\nDESCRIPTION:Time to check your ${key} in Recall.\nDTSTART;TZID=Asia/Kolkata:20240101T${time}\nDTEND;TZID=Asia/Kolkata:20240101T${parseInt(time)+10000}\n${rrule}\nBEGIN:VALARM\nTRIGGER:-PT0M\nACTION:DISPLAY\nDESCRIPTION:Reminder\nEND:VALARM\nEND:VEVENT\nEND:VCALENDAR`;
-        
-        const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
-        const link = document.createElement('a'); link.href = window.URL.createObjectURL(blob); link.setAttribute('download', `Recall_${key}_Reminder.ics`);
-        document.body.appendChild(link); link.click(); document.body.removeChild(link);
-    }
     
-    window.onload = initNotifUI;
-
-    // --- NAVIGATION ---
     function switchTab(tab) {
         document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
         document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
@@ -500,7 +381,7 @@
         document.getElementById('library-list').classList.remove('edit-mode');
         document.getElementById('bulk-delete-btn').style.display = 'none';
         
-        if(tab === 'feed') refreshFeed(false);
+        if(tab === 'feed') renderFeedItems(); 
         if(tab === 'inbox') renderInbox();
         if(tab === 'explore') renderLibrary();
     }
@@ -537,7 +418,6 @@
             document.getElementById('yt-container').innerHTML = ''; 
             document.getElementById('yt-handoff-btn').style.display = 'none';
             
-            // Reset Snipping Engine
             snipStartTime = null;
             const snipBtn = document.getElementById('snip-btn');
             if(snipBtn) { snipBtn.innerText = "✂️ Start Audio Snip"; snipBtn.style.background = "var(--accent)"; }
@@ -548,17 +428,39 @@
         }
     }
 
-    // --- LIBRARY & EDIT ---
+    function filterFeedBySource(sourceName) {
+        currentFeedSource = sourceName;
+        const tagContainer = document.getElementById('active-source-container');
+        tagContainer.innerHTML = `<div class="active-filter-chip"><span>Filtering by: ${sourceName}</span><button onclick="clearSourceFilter()"><span class="material-symbols-outlined">close</span></button></div>`;
+        switchTab('feed');
+    }
+
+    function clearSourceFilter() {
+        currentFeedSource = 'all';
+        document.getElementById('active-source-container').innerHTML = '';
+        renderFeedItems();
+    }
+
     function renderLibrary() {
         const list = document.getElementById('library-list');
         const filter = document.getElementById('library-filter').value;
+        const searchQuery = (document.getElementById('library-search')?.value || "").toLowerCase();
+        
         document.getElementById('sub-search-bar').style.display = (filter === 'all' || filter === 'subs') ? 'flex' : 'none';
         list.innerHTML = ""; selectedItems = [];
 
-        if (filter === 'all' || filter === 'subs') db.subs.forEach((s, i) => list.innerHTML += createLibraryCard('sub', i, s.title, 'Subscription'));
+        if (filter === 'all' || filter === 'subs') {
+            db.subs.forEach((s, i) => { 
+                if(!searchQuery || s.title.toLowerCase().includes(searchQuery)) {
+                    list.innerHTML += createLibraryCard('sub', i, s.title, 'Subscription');
+                }
+            });
+        }
         if (filter === 'all' || filter === 'epub' || filter === 'pdf') {
             db.localMedia.forEach((m, i) => {
                 if(filter !== 'all' && filter !== m.type) return;
+                if(searchQuery && !m.name.toLowerCase().includes(searchQuery)) return;
+                
                 const hlCount = db.notes.filter(n => n.mediaId === m.id).length;
                 list.innerHTML += createLibraryCard('media', i, m.name, `${m.type.toUpperCase()} • ${hlCount} Highlights`, m.id);
             });
@@ -567,8 +469,9 @@
     }
 
     function createLibraryCard(type, index, title, meta, mediaId = null) {
-        const clickAction = type === 'sub' ? '' : `onclick="if(!isEditMode) loadSavedMedia('${mediaId}', '${title.replace(/'/g, "\\'")}')"`;
-        return `<div class="glass-card" id="lib-card-${type}-${index}" ${clickAction} style="${type==='sub'?'cursor:default;':''}"><div class="checkbox-overlay" onclick="event.stopPropagation(); toggleSelect('${type}', ${index})"></div><span class="item-title" style="margin-right:20px;">${title}</span><span class="item-meta">${meta}</span></div>`;
+        const safeTitle = title.replace(/'/g, "\\'");
+        const clickAction = type === 'sub' ? `if(isEditMode){toggleSelect('${type}',${index})}else{filterFeedBySource('${safeTitle}')}` : `if(isEditMode){toggleSelect('${type}',${index})}else{loadSavedMedia('${mediaId}', '${safeTitle}')}`;
+        return `<div class="glass-card" id="lib-card-${type}-${index}" onclick="${clickAction}" style="cursor:pointer;"><div class="checkbox-overlay"></div><span class="item-title" style="margin-right:20px;">${title}</span><span class="item-meta">${meta}</span></div>`;
     }
 
     function toggleLibraryEditMode() {
@@ -605,7 +508,6 @@
         save(); document.getElementById('library-filter').value = type; renderLibrary(); alert(`${file.name} added to Library!`);
     }
 
-    // --- FIX: BLOB URL EPUB LOADER ---
     async function loadSavedMedia(id, title, jumpTarget = null) {
         const file = await localforage.getItem('media_' + id);
         if(!file) return alert("File not found on device.");
@@ -630,7 +532,6 @@
             document.body.classList.add('modal-open');
             setTimeout(() => modal.classList.add('open'), 10);
         } else {
-            // High Speed EPUB Blob Generation
             document.getElementById('modal-ebook-ui').style.display = 'block';
             document.getElementById('epub-viewer').innerHTML = ''; 
             
@@ -638,37 +539,44 @@
             setTimeout(() => {
                 modal.classList.add('open');
                 
-                // Wait for the modal animation to finish so the container has exact pixel height
                 setTimeout(() => {
-                    const blobUrl = URL.createObjectURL(file);
-                    epubBook = ePub(blobUrl);
-                    
-                    rendition = epubBook.renderTo("epub-viewer", { 
-                        width: "100%", 
-                        height: "100%", 
-                        manager: "continuous", 
-                        flow: "paginated" 
-                    });
-                    
-                    if (jumpTarget) rendition.display(jumpTarget);
-                    else rendition.display();
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        try {
+                            const dataUrl = event.target.result;
+                            epubBook = ePub(dataUrl);
+                            
+                            rendition = epubBook.renderTo("epub-viewer", { 
+                                width: "100%", 
+                                height: "100%", 
+                                manager: "continuous", 
+                                flow: "paginated" 
+                            });
+                            
+                            if (jumpTarget) rendition.display(jumpTarget);
+                            else rendition.display();
 
-                    epubBook.loaded.navigation.then(function(toc){
-                        document.getElementById('toc-dropdown').innerHTML = toc.map(c => `<div class="toc-item" onclick="rendition.display('${c.href}'); document.getElementById('toc-dropdown').style.display='none';">${c.label}</div>`).join('');
-                    });
-                    
-                    let tsX = 0; let teX = 0;
-                    rendition.on('touchstart', ev => { tsX = ev.changedTouches[0].screenX; });
-                    rendition.on('touchend', ev => { 
-                        teX = ev.changedTouches[0].screenX; 
-                        if (teX < tsX - 50) rendition.next(); if (teX > tsX + 50) rendition.prev();
-                    });
-                    
-                    rendition.on("selected", (cfiRange) => {
-                        const btn = document.getElementById('floating-highlight');
-                        btn.style.display = 'block'; btn.dataset.cfi = cfiRange; btn.dataset.text = ""; 
-                    });
-                }, 500); // 500ms guaranteed CSS animation completion
+                            epubBook.loaded.navigation.then(function(toc){
+                                document.getElementById('toc-dropdown').innerHTML = toc.map(c => `<div class="toc-item" onclick="rendition.display('${c.href}'); document.getElementById('toc-dropdown').style.display='none';">${c.label}</div>`).join('');
+                            });
+                            
+                            let tsX = 0; let teX = 0;
+                            rendition.on('touchstart', ev => { tsX = ev.changedTouches[0].screenX; });
+                            rendition.on('touchend', ev => { 
+                                teX = ev.changedTouches[0].screenX; 
+                                if (teX < tsX - 50) rendition.next(); if (teX > tsX + 50) rendition.prev();
+                            });
+                            
+                            rendition.on("selected", (cfiRange) => {
+                                const btn = document.getElementById('floating-highlight');
+                                btn.style.display = 'block'; btn.dataset.cfi = cfiRange; btn.dataset.text = ""; 
+                            });
+                        } catch (err) {
+                            alert("Failed to render book data. File may be corrupted.");
+                        }
+                    };
+                    reader.readAsDataURL(file); 
+                }, 500); 
             }, 10);
         }
     }
@@ -676,7 +584,6 @@
     function changeEpubFontSize(amount) { if(rendition) { epubFontSize += amount; rendition.themes.fontSize(epubFontSize + "%"); } }
     function setEpubBrightness(val) { document.getElementById('epub-viewer').style.filter = `brightness(${val}%)`; }
 
-    // --- EXPLORE SEARCH & OPML ---
     function sanitizeFeedUrl(url) {
         if (!url) return null; url = url.trim();
         if (url.includes('youtube.com/channel/')) return `https://www.youtube.com/feeds/videos.xml?channel_id=${url.split('channel/')[1].split('?')[0].split('/')[0]}`;
@@ -750,7 +657,6 @@
         } catch(e) { resDiv.innerHTML = "Search failed. Check connection."; }
     }
 
-    // --- TIMEOUT FEED SYNC ---
     async function fetchDailyWiki() {
         const today = new Date().toISOString().split('T')[0];
         let cachedWiki = JSON.parse(localStorage.getItem('daily_wiki'));
@@ -804,7 +710,7 @@
                     
                     if ((link.includes('youtube.com') || link.includes('youtu.be')) && 
                         (title.toLowerCase().includes('#shorts') || title.toLowerCase().includes('shorts'))) {
-                        return; // Skip Shorts
+                        return; 
                     }
                     
                     let content = node.getElementsByTagNameNS("*", "encoded").length > 0 ? node.getElementsByTagNameNS("*", "encoded")[0].textContent : (node.querySelector("description, content")?.textContent || "");
@@ -845,7 +751,15 @@
 
     function renderFeedItems() {
         const list = document.getElementById('feed-list');
-        const filteredItems = activeFeedFilter === 'all' ? db.feedCache : db.feedCache.filter(i => i.type === activeFeedFilter);
+        const query = (document.getElementById('feed-search')?.value || "").toLowerCase();
+        
+        const filteredItems = db.feedCache.filter(item => {
+            let matchType = activeFeedFilter === 'all' || item.type === activeFeedFilter;
+            let matchSource = currentFeedSource === 'all' || item.source === currentFeedSource;
+            let matchSearch = !query || item.title.toLowerCase().includes(query) || (item.content && item.content.toLowerCase().includes(query));
+            return matchType && matchSource && matchSearch;
+        });
+        
         const itemsToRender = filteredItems.slice(0, displayLimit);
         
         let html = itemsToRender.map(item => {
@@ -856,10 +770,11 @@
 
         if (filteredItems.length > displayLimit) html += `<button class="glass-card" style="width:100%; text-align:center; color:var(--accent); font-weight:bold; cursor:pointer;" onclick="loadMoreFeeds()">Load More ↓</button>`;
         else if (itemsToRender.length > 0) html += `<p style="text-align:center; color:var(--sub); margin-top:20px;">End of feed.</p>`;
+        else if (query) html += `<p style="text-align:center; color:var(--sub); margin-top:20px;">No results found.</p>`;
+        
         list.innerHTML = html;
     }
 
-    // --- INSTANT ARTICLE EXTRACTOR & YOUTUBE ---
     async function openMediaModal(item) {
         const modal = document.getElementById('media-modal');
         modal.style.display = 'flex';
@@ -910,11 +825,9 @@
             let contentHtml = item.content || item.description || "<p>No content provided by the feed.</p>";
             let topImg = item.extractedImg && !contentHtml.includes(item.extractedImg) ? `<img src="${item.extractedImg}" style="width:100%; max-height:300px; object-fit:cover; border-radius:12px; margin-bottom:15px;">` : '';
             
-            // Show instant snippet while fetching full
             articleBody.innerHTML = `${topImg}<div id="extract-status" style="font-size:13px; color:var(--accent); text-align:center; margin-bottom:10px;">Extracting full text...</div>${contentHtml}`;
 
             try {
-                // Aggressive Dual Proxy Full Text Fetch
                 const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(item.link)}`;
                 const response = await fetchWithTimeout(proxyUrl, 5000); 
                 const htmlStr = await response.text();
@@ -944,11 +857,10 @@
                     if(status) { status.style.color = '#FF3B30'; status.innerText = "Extraction blocked. Snippet provided below."; }
                 }
             }
-            articleBody.innerHTML += `<div style="margin-top: 30px; text-align: center;"><button class="glass-card" style="width:100%; color:var(--accent); font-weight:bold; border: 1px solid var(--accent); cursor:pointer;" onclick="window.open('${item.link}', '_blank')">Read Original Webpage in Safari</button></div>`;
+            articleBody.innerHTML += `<div style="margin-top: 30px; text-align: center;"><button class="primary-btn" onclick="window.open('${item.link}', '_blank')">Open Webpage</button><p style="font-size:12px; color:var(--sub); margin-top:5px;">Opens in Safari for full native Reader Mode.</p></div>`;
         }
     }
 
-    // --- HIGHLIGHTING & RANGED SNIPPING ---
     document.addEventListener('selectionchange', () => {
         const text = window.getSelection().toString().trim();
         const btn = document.getElementById('floating-highlight');
@@ -989,28 +901,24 @@
         else if (isYT && ytPlayer && typeof ytPlayer.getCurrentTime === 'function') { currentTime = Math.floor(ytPlayer.getCurrentTime()); }
 
         if (snipStartTime === null) {
-            // STEP 1: Mark Start Time
             snipStartTime = currentTime;
             btn.innerText = "⏹ End Snip & Dictate Note";
             btn.style.background = "#FF3B30";
         } else {
-            // STEP 2: Mark End Time & Save
             let endTime = currentTime;
             let prefix = `[${snipStartTime}s - ${endTime}s] `;
             let target = modal.dataset.currentLink;
             
             if (isYT) target += (target.includes('?') ? `&t=${snipStartTime}s` : `?t=${snipStartTime}s`);
-            else target = snipStartTime; // Store bare seconds for standard audio
+            else target = snipStartTime; 
 
-            // Auto-pause media so user can dictate
             if (!isYT && audio.src) audio.pause();
             if (isYT && ytPlayer) ytPlayer.pauseVideo();
 
-            const thought = prompt(`Snipped from ${snipStartTime}s to ${endTime}s.\n\nSince local transcription is blocked, please type or use your keyboard's Microphone 🎤 to dictate a summary:`);
+            const thought = prompt(`Snipped from ${snipStartTime}s to ${endTime}s.\n\nUse your keyboard's Microphone 🎤 to dictate a summary:`);
             
             if(thought) saveNote(`${prefix}${thought}`, document.getElementById('modal-title').innerText, 'podcast', target, null, modal.dataset.currentImg);
             
-            // Reset Button
             snipStartTime = null;
             btn.innerText = "✂️ Start Audio Snip";
             btn.style.background = "var(--accent)";
@@ -1060,7 +968,7 @@
     function startSRS() {
         const now = Date.now(); srsQueue = db.notes.filter(n => n.nextReview <= now);
         if(srsQueue.length === 0) return alert("You are all caught up for today!");
-        const modal = document.getElementById('srs-modal'); modal.style.display = 'flex'; setTimeout(() => modal.classList.add('open'), 10); showNextSRS();
+        const modal = document.getElementById('srs-modal'); modal.style.display = 'flex'; document.body.classList.add('modal-open'); setTimeout(() => modal.classList.add('open'), 10); showNextSRS();
     }
 
     function showNextSRS() {
