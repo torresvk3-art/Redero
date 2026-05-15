@@ -8,12 +8,12 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     
+    <!-- Icons & Required Libraries -->
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.5/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/epub.js/0.3.88/epub.min.js"></script>
     <script src="https://unpkg.com/@mozilla/readability/Readability.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
-    <!-- YouTube IFrame API for precision snipping -->
     <script src="https://www.youtube.com/iframe_api"></script>
 
     <style>
@@ -53,13 +53,13 @@
 
         .view { display: none; } .view.active { display: block; }
 
+        /* --- MODALS --- */
         .fullscreen-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 1000; display: none; flex-direction: column; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); }
         .fullscreen-modal.open { transform: translateY(0); }
         .modal-header { padding: max(20px, env(safe-area-inset-top)) 20px 15px 20px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
         .modal-content { flex: 1; overflow-y: auto; padding: 20px; padding-bottom: 60px; -webkit-user-select: text; user-select: text; -webkit-overflow-scrolling: touch; }
         
-        /* EPUB CONTAINER RIGID SIZING */
-        .epub-container-wrapper { height: calc(100dvh - 180px); width: 100%; border-radius: 12px; overflow: hidden; margin-top: 10px; position: relative;}
+        .epub-container-wrapper { height: 60vh; min-height: 400px; width: 100%; border-radius: 12px; overflow: hidden; margin-top: 10px; position: relative;}
         #epub-viewer { width: 100%; height: 100%; background: var(--surface); margin: 0; overflow: hidden; border: none; transition: filter 0.2s ease; position: absolute; top:0; left:0;}
         
         #article-body, #transcript-container { font-size: 18px; line-height: 1.6; color: var(--text); padding: 0 10px; overflow-wrap: break-word;}
@@ -74,8 +74,10 @@
         .user-note { margin-top: 12px; padding: 12px; background: color-mix(in srgb, var(--bg) 50%, transparent); border-radius: 10px; border-left: 3px solid var(--accent); font-size: 15px; color: var(--text); }
         #sync-indicator { text-align:center; color:var(--accent); font-weight: bold; font-size:13px; padding-bottom:10px; display:none; }
         
+        /* Settings UI */
         .setting-row { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 10px;}
-        .setting-row select, .setting-row input[type="time"] { background: var(--surface); border: 1px solid var(--border); padding: 8px 12px; border-radius: 8px; color: var(--text); }
+        .setting-row select, .setting-row input { background: var(--surface); border: 1px solid var(--border); padding: 8px 12px; border-radius: 8px; color: var(--text); }
+        
         .reader-controls { display: flex; justify-content: space-between; padding: 10px 0; align-items: center;}
         .reader-controls button { background: var(--surface); border: 1px solid var(--border); color: var(--accent); padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 14px; cursor: pointer;}
         
@@ -91,11 +93,10 @@
         .glass-card.selected .checkbox-overlay { background: #FF3B30; border-color: #FF3B30; }
         #bulk-delete-btn { display: none; background: #FF3B30; color: white; width: 100%; padding: 12px; border-radius: 12px; font-weight: bold; border: none; margin-bottom: 20px; cursor: pointer; }
 
+        /* Notification Settings */
         .day-picker { display: flex; gap: 5px; margin-top: 10px; width: 100%; justify-content: space-between;}
         .day-bubble { width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--surface); border: 1px solid var(--border); font-size: 12px; font-weight: bold; cursor: pointer; color: var(--sub);}
         .day-bubble.active { background: var(--accent); color: white; border-color: var(--accent); }
-        
-        #extract-loader { text-align:center; padding:15px; font-size:14px; color:var(--sub); display:none; }
     </style>
 </head>
 <body>
@@ -123,7 +124,7 @@
                 <div id="feed-list"></div>
             </div>
 
-            <!-- LIBRARY TAB -->
+            <!-- EXPLORE / LIBRARY TAB -->
             <div id="view-explore" class="view">
                 <input type="file" id="file-in" accept=".epub,.pdf" style="display:none" onchange="openAndSaveLocalFile(event)">
                 <button class="primary-btn" onclick="document.getElementById('file-in').click()">+ Add Ebook or PDF</button>
@@ -142,11 +143,11 @@
 
                 <div class="search-bar" id="sub-search-bar">
                     <select id="search-type">
-                        <option value="podcast">Podcasts</option>
+                        <option value="podcast">Podcast</option>
                         <option value="reddit">Reddit</option>
-                        <option value="youtube">YouTube</option>
+                        <option value="youtube">Social / YT Link</option>
                     </select>
-                    <input type="text" id="lib-search" placeholder="Search or paste channel...">
+                    <input type="text" id="lib-search" placeholder="Paste IG, Threads, Bsky, YT...">
                     <button class="text-btn" onclick="searchExplore()">Find</button>
                 </div>
                 <div id="search-results"></div>
@@ -191,7 +192,6 @@
                     <option value="10">10 Items</option>
                     <option value="15">15 Items</option>
                     <option value="25">25 Items</option>
-                    <option value="50">50 Items</option>
                 </select>
             </div>
             <div class="setting-row">
@@ -208,41 +208,80 @@
             </div>
         </div>
 
-        <h4 style="margin-top: 30px; margin-bottom: 10px; padding-left: 10px;">Reminders & Alerts</h4>
+        <h4 style="margin-top: 30px; margin-bottom: 10px; padding-left: 10px;">Calendar Reminders</h4>
+        
+        <!-- Feed Reminder -->
         <div class="glass-card" style="padding: 15px 20px;">
-            <div class="setting-row" style="border-bottom:none; flex-direction:column; align-items:flex-start;">
+            <strong style="display:block; margin-bottom:10px; color:var(--accent);">Feed Sync Schedule</strong>
+            <div class="setting-row" style="border-bottom:none; flex-direction:column; align-items:flex-start; padding:0;">
                 <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
-                    <strong>Schedule Type</strong>
-                    <select id="setting-notif-type" onchange="toggleNotifUI()">
-                        <option value="none">Off</option>
+                    <span>Frequency</span>
+                    <select id="notif-feed-type" onchange="toggleNotifUI('feed')">
                         <option value="daily">Daily</option>
-                        <option value="weekly">Custom Days</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
                     </select>
                 </div>
                 
-                <div id="notif-days-ui" class="day-picker" style="display:none;">
-                    <div class="day-bubble" onclick="toggleDay('0')" id="day-0">S</div>
-                    <div class="day-bubble" onclick="toggleDay('1')" id="day-1">M</div>
-                    <div class="day-bubble" onclick="toggleDay('2')" id="day-2">T</div>
-                    <div class="day-bubble" onclick="toggleDay('3')" id="day-3">W</div>
-                    <div class="day-bubble" onclick="toggleDay('4')" id="day-4">T</div>
-                    <div class="day-bubble" onclick="toggleDay('5')" id="day-5">F</div>
-                    <div class="day-bubble" onclick="toggleDay('6')" id="day-6">S</div>
+                <div id="notif-feed-days" class="day-picker" style="display:none;">
+                    <div class="day-bubble feed-bubble" onclick="toggleDay('feed', '0')" id="feed-day-0">S</div>
+                    <div class="day-bubble feed-bubble" onclick="toggleDay('feed', '1')" id="feed-day-1">M</div>
+                    <div class="day-bubble feed-bubble" onclick="toggleDay('feed', '2')" id="feed-day-2">T</div>
+                    <div class="day-bubble feed-bubble" onclick="toggleDay('feed', '3')" id="feed-day-3">W</div>
+                    <div class="day-bubble feed-bubble" onclick="toggleDay('feed', '4')" id="feed-day-4">T</div>
+                    <div class="day-bubble feed-bubble" onclick="toggleDay('feed', '5')" id="feed-day-5">F</div>
+                    <div class="day-bubble feed-bubble" onclick="toggleDay('feed', '6')" id="feed-day-6">S</div>
+                </div>
+
+                <div id="notif-feed-monthly" style="display:none; width:100%; justify-content:space-between; margin-top:10px;">
+                    <span>Date of Month</span>
+                    <input type="number" id="notif-feed-date" min="1" max="28" value="1" style="width:60px; text-align:center;">
                 </div>
 
                 <div style="display:flex; justify-content:space-between; width:100%; align-items:center; margin-top:15px;">
-                    <strong>Time</strong>
-                    <input type="time" id="setting-notif-time" value="09:00">
+                    <span>Time</span>
+                    <input type="time" id="notif-feed-time" value="09:00">
                 </div>
-                
-                <button class="text-btn" style="width:100%; margin-top:20px; text-align:center; border: 1px solid var(--accent); padding: 10px; border-radius: 12px;" onclick="generateCalendarInvite()">
-                    Export to Apple Calendar
-                </button>
-                <p style="font-size:11px; color:var(--sub); text-align:center; margin-top:10px;">
-                    iOS restricts background notifications for web apps. Add this schedule to your Calendar to get reliable alerts when the app is closed.
-                </p>
+                <button class="text-btn" style="width:100%; margin-top:15px; border: 1px solid var(--border); padding: 8px; border-radius: 8px;" onclick="generateCalendarInvite('feed')">Export Feed Alarm</button>
             </div>
         </div>
+
+        <!-- Recall Reminder -->
+        <div class="glass-card" style="padding: 15px 20px;">
+            <strong style="display:block; margin-bottom:10px; color:var(--accent);">Recall (SRS) Schedule</strong>
+            <div class="setting-row" style="border-bottom:none; flex-direction:column; align-items:flex-start; padding:0;">
+                <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
+                    <span>Frequency</span>
+                    <select id="notif-recall-type" onchange="toggleNotifUI('recall')">
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                    </select>
+                </div>
+                
+                <div id="notif-recall-days" class="day-picker" style="display:none;">
+                    <div class="day-bubble recall-bubble" onclick="toggleDay('recall', '0')" id="recall-day-0">S</div>
+                    <div class="day-bubble recall-bubble" onclick="toggleDay('recall', '1')" id="recall-day-1">M</div>
+                    <div class="day-bubble recall-bubble" onclick="toggleDay('recall', '2')" id="recall-day-2">T</div>
+                    <div class="day-bubble recall-bubble" onclick="toggleDay('recall', '3')" id="recall-day-3">W</div>
+                    <div class="day-bubble recall-bubble" onclick="toggleDay('recall', '4')" id="recall-day-4">T</div>
+                    <div class="day-bubble recall-bubble" onclick="toggleDay('recall', '5')" id="recall-day-5">F</div>
+                    <div class="day-bubble recall-bubble" onclick="toggleDay('recall', '6')" id="recall-day-6">S</div>
+                </div>
+
+                <div id="notif-recall-monthly" style="display:none; width:100%; justify-content:space-between; margin-top:10px;">
+                    <span>Date of Month</span>
+                    <input type="number" id="notif-recall-date" min="1" max="28" value="1" style="width:60px; text-align:center;">
+                </div>
+
+                <div style="display:flex; justify-content:space-between; width:100%; align-items:center; margin-top:15px;">
+                    <span>Time</span>
+                    <input type="time" id="notif-recall-time" value="20:00">
+                </div>
+                <button class="text-btn" style="width:100%; margin-top:15px; border: 1px solid var(--border); padding: 8px; border-radius: 8px;" onclick="generateCalendarInvite('recall')">Export Recall Alarm</button>
+            </div>
+        </div>
+
     </div>
 </div>
 
@@ -255,15 +294,13 @@
     
     <div class="modal-content" id="modal-body" style="padding: 10px;">
         <div id="modal-audio-ui" style="display:none;">
-            <!-- YouTube API connected Iframe -->
-            <iframe id="main-video" style="width:100%; aspect-ratio:16/9; border-radius:12px; border:none; margin-bottom:15px; display:none;" allowfullscreen></iframe>
+            <div id="yt-container"></div>
             <audio id="main-audio" controls style="width:100%; margin-bottom:15px; display:none;"></audio>
             <button class="text-btn" style="width:100%; background:var(--accent); color:white; padding:12px; border-radius:12px; margin-bottom:15px;" onclick="snipAudio()">✂️ Snip Moment to Inbox</button>
             <div id="transcript-container" style="padding:0 15px;"></div>
         </div>
 
         <div id="modal-article-ui" style="display:none;">
-            <div id="extract-loader">Scanning for full text...</div>
             <div id="article-body"></div>
         </div>
         
@@ -308,8 +345,9 @@
     function initDB() {
         let currentDB = JSON.parse(localStorage.getItem('recall_v3_db'));
         if (!currentDB || !currentDB.notes) currentDB = { subs: [], notes: [], feedCache: [], localMedia: [], lastSync: 0, settings: {} };
-        const defSettings = { theme: 'black', feedLimit: 15, srsMode: 3, notifType: 'none', notifDays: [], notifTime: '09:00' };
+        const defSettings = { theme: 'black', feedLimit: 15, srsMode: 3, notif: { feed: {type:'daily', days:[], date:1, time:'09:00'}, recall: {type:'daily', days:[], date:1, time:'20:00'} } };
         currentDB.settings = { ...defSettings, ...(currentDB.settings || {}) };
+        if(!currentDB.settings.notif) currentDB.settings.notif = defSettings.notif;
         if(!currentDB.localMedia) currentDB.localMedia = [];
         return currentDB;
     }
@@ -317,7 +355,7 @@
     let db = initDB();
     let rendition = null;
     let epubBook = null;
-    let ytPlayer = null; // YouTube Player Instance
+    let ytPlayer = null; 
     let srsQueue = [];
     let epubFontSize = 100;
     
@@ -331,76 +369,70 @@
     document.getElementById('setting-theme').value = db.settings.theme;
     document.getElementById('setting-limit').value = db.settings.feedLimit;
     document.getElementById('setting-srs').value = db.settings.srsMode;
-    document.getElementById('setting-notif-type').value = db.settings.notifType;
-    document.getElementById('setting-notif-time').value = db.settings.notifTime;
-    toggleNotifUI();
 
     function save() { 
-        db.settings.notifType = document.getElementById('setting-notif-type').value;
-        db.settings.notifTime = document.getElementById('setting-notif-time').value;
         localStorage.setItem('recall_v3_db', JSON.stringify(db)); 
     }
 
-    // --- YT API INIT ---
-    function onYouTubeIframeAPIReady() {
-        // YT API is ready for snipping calls
+    // --- CALENDAR NOTIFICATIONS ---
+    function initNotifUI() {
+        ['feed', 'recall'].forEach(k => {
+            document.getElementById(`notif-${k}-type`).value = db.settings.notif[k].type;
+            document.getElementById(`notif-${k}-time`).value = db.settings.notif[k].time;
+            document.getElementById(`notif-${k}-date`).value = db.settings.notif[k].date;
+            toggleNotifUI(k);
+        });
     }
 
-    // --- NOTIFICATIONS & REMINDERS ---
-    function toggleNotifUI() {
-        const type = document.getElementById('setting-notif-type').value;
-        document.getElementById('notif-days-ui').style.display = type === 'weekly' ? 'flex' : 'none';
-        document.querySelectorAll('.day-bubble').forEach(el => el.classList.remove('active'));
-        if(type === 'weekly' && db.settings.notifDays) {
-            db.settings.notifDays.forEach(d => { const el = document.getElementById('day-' + d); if(el) el.classList.add('active'); });
+    function toggleNotifUI(key) {
+        const type = document.getElementById(`notif-${k}-type`).value;
+        document.getElementById(`notif-${k}-days`).style.display = type === 'weekly' ? 'flex' : 'none';
+        document.getElementById(`notif-${k}-monthly`).style.display = type === 'monthly' ? 'flex' : 'none';
+        
+        document.querySelectorAll(`.${key}-bubble`).forEach(el => el.classList.remove('active'));
+        if(type === 'weekly' && db.settings.notif[k].days) {
+            db.settings.notif[k].days.forEach(d => { const el = document.getElementById(`${key}-day-${d}`); if(el) el.classList.add('active'); });
         }
-        save();
+        db.settings.notif[k].type = type; save();
     }
 
-    function toggleDay(dayNum) {
-        const el = document.getElementById('day-' + dayNum);
-        if(!db.settings.notifDays) db.settings.notifDays = [];
-        if (db.settings.notifDays.includes(dayNum)) {
-            db.settings.notifDays = db.settings.notifDays.filter(d => d !== dayNum); el.classList.remove('active');
+    function toggleDay(key, dayNum) {
+        const el = document.getElementById(`${key}-day-${dayNum}`);
+        if(!db.settings.notif[k].days) db.settings.notif[k].days = [];
+        if (db.settings.notif[k].days.includes(dayNum)) {
+            db.settings.notif[k].days = db.settings.notif[k].days.filter(d => d !== dayNum); el.classList.remove('active');
         } else {
-            db.settings.notifDays.push(dayNum); el.classList.add('active');
+            db.settings.notif[k].days.push(dayNum); el.classList.add('active');
         }
         save();
     }
 
-    function generateCalendarInvite() {
-        const type = document.getElementById('setting-notif-type').value;
-        if(type === 'none') return alert("Please select Daily or Custom Days first.");
-        const time = document.getElementById('setting-notif-time').value.replace(':', '') + '00';
-        let rrule = '';
-        if (type === 'daily') rrule = 'RRULE:FREQ=DAILY';
-        else if (type === 'weekly' && db.settings.notifDays.length > 0) {
-            const map = {'0':'SU','1':'MO','2':'TU','3':'WE','4':'TH','5':'FR','6':'SA'};
-            rrule = `RRULE:FREQ=WEEKLY;BYDAY=${db.settings.notifDays.map(d => map[d]).join(',')}`;
-        } else { return alert("Please select at least one day."); }
+    function generateCalendarInvite(key) {
+        db.settings.notif[k].time = document.getElementById(`notif-${k}-time`).value;
+        db.settings.notif[k].date = document.getElementById(`notif-${k}-date`).value;
+        save();
 
-        const icsContent = `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Recall App//Reminder//EN\nBEGIN:VEVENT\nSUMMARY:Recall Media & SRS Review\nDESCRIPTION:Time to check your new feeds and review your Spaced Repetition notes in Recall.\nDTSTART;TZID=Asia/Kolkata:20240101T${time}\nDTEND;TZID=Asia/Kolkata:20240101T${parseInt(time)+10000}\n${rrule}\nBEGIN:VALARM\nTRIGGER:-PT0M\nACTION:DISPLAY\nDESCRIPTION:Reminder\nEND:VALARM\nEND:VEVENT\nEND:VCALENDAR`;
+        const type = db.settings.notif[k].type;
+        const time = db.settings.notif[k].time.replace(':', '') + '00';
+        let rrule = '';
+        
+        if (type === 'daily') rrule = 'RRULE:FREQ=DAILY';
+        else if (type === 'weekly' && db.settings.notif[k].days.length > 0) {
+            const map = {'0':'SU','1':'MO','2':'TU','3':'WE','4':'TH','5':'FR','6':'SA'};
+            rrule = `RRULE:FREQ=WEEKLY;BYDAY=${db.settings.notif[k].days.map(d => map[d]).join(',')}`;
+        } 
+        else if (type === 'monthly') rrule = `RRULE:FREQ=MONTHLY;BYMONTHDAY=${db.settings.notif[k].date}`;
+        else return alert("Please configure days/dates first.");
+
+        const title = key === 'feed' ? "Recall Feed Sync" : "Recall SRS Review";
+        const icsContent = `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Recall App//Reminder//EN\nBEGIN:VEVENT\nSUMMARY:${title}\nDESCRIPTION:Time to check your ${key} in Recall.\nDTSTART;TZID=Asia/Kolkata:20240101T${time}\nDTEND;TZID=Asia/Kolkata:20240101T${parseInt(time)+10000}\n${rrule}\nBEGIN:VALARM\nTRIGGER:-PT0M\nACTION:DISPLAY\nDESCRIPTION:Reminder\nEND:VALARM\nEND:VEVENT\nEND:VCALENDAR`;
+        
         const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
-        const link = document.createElement('a'); link.href = window.URL.createObjectURL(blob); link.setAttribute('download', 'Recall_Reminder.ics');
+        const link = document.createElement('a'); link.href = window.URL.createObjectURL(blob); link.setAttribute('download', `Recall_${key}_Reminder.ics`);
         document.body.appendChild(link); link.click(); document.body.removeChild(link);
     }
-
-    function checkInAppReminders() {
-        const type = db.settings.notifType;
-        if (type === 'none') return;
-        const todayStr = new Date().toISOString().split('T')[0];
-        if (db.settings.lastAlertDate === todayStr) return;
-        
-        let shouldAlert = false;
-        if (type === 'daily') shouldAlert = true;
-        else if (type === 'weekly' && db.settings.notifDays.includes(new Date().getDay().toString())) shouldAlert = true;
-
-        if (shouldAlert) {
-            const pendingReviews = db.notes.filter(n => n.nextReview <= Date.now()).length;
-            let msg = "Welcome back! " + (pendingReviews > 0 ? `You have ${pendingReviews} notes waiting for review today.` : "Time to catch up on your latest feeds.");
-            setTimeout(() => { if(confirm(msg + "\n\nStart Review now?")) startSRS(); db.settings.lastAlertDate = todayStr; save(); }, 1000);
-        }
-    }
+    
+    window.onload = initNotifUI;
 
     // --- NAVIGATION ---
     function switchTab(tab) {
@@ -442,15 +474,15 @@
         document.body.classList.remove('modal-open');
         if(id === 'media-modal') {
             document.getElementById('main-audio').pause();
-            document.getElementById('main-video').src = '';
-            if(ytPlayer) ytPlayer.destroy();
+            document.getElementById('yt-container').innerHTML = ''; // Kill iframe securely
+            if(ytPlayer) ytPlayer = null;
             document.getElementById('toc-dropdown').style.display = 'none';
-            document.getElementById('epub-viewer').innerHTML = ''; // prevent memory leak
+            document.getElementById('epub-viewer').innerHTML = ''; 
         }
         setTimeout(() => { m.style.display = 'none'; }, 300);
     }
 
-    // --- LIBRARY & STORAGE ---
+    // --- LIBRARY & EDIT ---
     function renderLibrary() {
         const list = document.getElementById('library-list');
         const filter = document.getElementById('library-filter').value;
@@ -470,12 +502,7 @@
 
     function createLibraryCard(type, index, title, meta, mediaId = null) {
         const clickAction = type === 'sub' ? '' : `onclick="if(!isEditMode) loadSavedMedia('${mediaId}', '${title.replace(/'/g, "\\'")}')"`;
-        return `
-            <div class="glass-card" id="lib-card-${type}-${index}" ${clickAction} style="${type==='sub'?'cursor:default;':''}">
-                <div class="checkbox-overlay" onclick="event.stopPropagation(); toggleSelect('${type}', ${index})"></div>
-                <span class="item-title" style="margin-right:20px;">${title}</span>
-                <span class="item-meta">${meta}</span>
-            </div>`;
+        return `<div class="glass-card" id="lib-card-${type}-${index}" ${clickAction} style="${type==='sub'?'cursor:default;':''}"><div class="checkbox-overlay" onclick="event.stopPropagation(); toggleSelect('${type}', ${index})"></div><span class="item-title" style="margin-right:20px;">${title}</span><span class="item-meta">${meta}</span></div>`;
     }
 
     function toggleLibraryEditMode() {
@@ -498,12 +525,8 @@
         if(selectedItems.length === 0 || !confirm(`Delete ${selectedItems.length} items?`)) return;
         const subsToDelete = selectedItems.filter(id => id.startsWith('sub-')).map(id => parseInt(id.split('-')[1])).sort((a,b)=>b-a);
         const mediaToDelete = selectedItems.filter(id => id.startsWith('media-')).map(id => parseInt(id.split('-')[1])).sort((a,b)=>b-a);
-
         subsToDelete.forEach(i => db.subs.splice(i, 1));
-        for (let i of mediaToDelete) {
-            await localforage.removeItem('media_' + db.localMedia[i].id);
-            db.localMedia.splice(i, 1);
-        }
+        for (let i of mediaToDelete) { await localforage.removeItem('media_' + db.localMedia[i].id); db.localMedia.splice(i, 1); }
         save(); toggleLibraryEditMode(); renderLibrary();
     }
 
@@ -542,34 +565,39 @@
             document.getElementById('pdf-viewer').src = URL.createObjectURL(file);
             setTimeout(() => modal.classList.add('open'), 10);
         } else {
-            // EPUB Handling: Fixes the 0x0 bug by delaying render until modal is completely visible
             document.getElementById('modal-ebook-ui').style.display = 'block';
+            document.getElementById('epub-viewer').innerHTML = ''; 
+            
+            // Animation Delay Fix for 0x0 Bug
             setTimeout(() => {
                 modal.classList.add('open');
                 setTimeout(() => {
-                    const blobUrl = URL.createObjectURL(file);
-                    epubBook = ePub(blobUrl);
-                    rendition = epubBook.renderTo("epub-viewer", { width: "100%", height: "100%", manager: "continuous", flow: "paginated" });
-                    
-                    if (jumpTarget) rendition.display(jumpTarget);
-                    else rendition.display();
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        epubBook = ePub(event.target.result);
+                        rendition = epubBook.renderTo("epub-viewer", { width: "100%", height: "100%", manager: "continuous", flow: "paginated" });
+                        
+                        if (jumpTarget) rendition.display(jumpTarget);
+                        else rendition.display();
 
-                    epubBook.loaded.navigation.then(function(toc){
-                        document.getElementById('toc-dropdown').innerHTML = toc.map(c => `<div class="toc-item" onclick="rendition.display('${c.href}'); document.getElementById('toc-dropdown').style.display='none';">${c.label}</div>`).join('');
-                    });
-                    
-                    let tsX = 0; let teX = 0;
-                    rendition.on('touchstart', ev => { tsX = ev.changedTouches[0].screenX; });
-                    rendition.on('touchend', ev => { 
-                        teX = ev.changedTouches[0].screenX; 
-                        if (teX < tsX - 50) rendition.next(); if (teX > tsX + 50) rendition.prev();
-                    });
-                    
-                    rendition.on("selected", (cfiRange) => {
-                        const btn = document.getElementById('floating-highlight');
-                        btn.style.display = 'block'; btn.dataset.cfi = cfiRange; btn.dataset.text = ""; 
-                    });
-                }, 350); 
+                        epubBook.loaded.navigation.then(function(toc){
+                            document.getElementById('toc-dropdown').innerHTML = toc.map(c => `<div class="toc-item" onclick="rendition.display('${c.href}'); document.getElementById('toc-dropdown').style.display='none';">${c.label}</div>`).join('');
+                        });
+                        
+                        let tsX = 0; let teX = 0;
+                        rendition.on('touchstart', ev => { tsX = ev.changedTouches[0].screenX; });
+                        rendition.on('touchend', ev => { 
+                            teX = ev.changedTouches[0].screenX; 
+                            if (teX < tsX - 50) rendition.next(); if (teX > tsX + 50) rendition.prev();
+                        });
+                        
+                        rendition.on("selected", (cfiRange) => {
+                            const btn = document.getElementById('floating-highlight');
+                            btn.style.display = 'block'; btn.dataset.cfi = cfiRange; btn.dataset.text = ""; 
+                        });
+                    };
+                    reader.readAsArrayBuffer(file);
+                }, 400); 
             }, 10);
         }
     }
@@ -577,13 +605,20 @@
     function changeEpubFontSize(amount) { if(rendition) { epubFontSize += amount; rendition.themes.fontSize(epubFontSize + "%"); } }
     function setEpubBrightness(val) { document.getElementById('epub-viewer').style.filter = `brightness(${val}%)`; }
 
-    // --- EXPLORE SEARCH ---
+    // --- EXPLORE SEARCH & OPML (SOCIAL SCRAPING ROUTES) ---
     function sanitizeFeedUrl(url) {
         if (!url) return null;
+        url = url.trim();
         if (url.includes('youtube.com/channel/')) return `https://www.youtube.com/feeds/videos.xml?channel_id=${url.split('channel/')[1].split('?')[0].split('/')[0]}`;
         if (url.includes('youtube.com/user/')) return `https://www.youtube.com/feeds/videos.xml?user=${url.split('user/')[1].split('?')[0].split('/')[0]}`;
+        if (url.includes('youtube.com/@')) return `https://rsshub.app/youtube/user/${url.split('@')[1].split('?')[0].split('/')[0]}`;
         if (url.match(/reddit\.com\/r\/[a-zA-Z0-9_]+$/)) return url + '/.rss';
         if (url.match(/reddit\.com\/r\/[a-zA-Z0-9_]+\/?$/)) return url.replace(/\/$/, '') + '/.rss';
+        
+        // Social Media Routes via RSSHub bridge
+        if (url.includes('bsky.app/profile/')) return `https://bsky.app/profile/${url.split('profile/')[1].split('/')[0].split('?')[0]}/rss`;
+        if (url.includes('threads.net/')) return `https://rsshub.app/threads/usr/${url.split('threads.net/')[1].split('?')[0].split('/')[0].replace('@', '')}`;
+        if (url.includes('instagram.com/')) return `https://rsshub.app/instagram/user/${url.split('instagram.com/')[1].split('?')[0].split('/')[0]}`;
         return url;
     }
 
@@ -606,24 +641,34 @@
     }
 
     async function searchExplore() {
-        const q = document.getElementById('lib-search').value.trim();
+        let urlInput = document.getElementById('lib-search').value.trim();
+        if(!urlInput) return; 
+        
+        // Instant Bypass for Social Links
+        let cleanUrl = sanitizeFeedUrl(urlInput);
+        if (cleanUrl !== urlInput && cleanUrl.includes('rsshub.app')) {
+            addSubscription('Social Media Feed', cleanUrl);
+            document.getElementById('search-results').innerHTML = `<p style="color:var(--accent);">Added Social Bridge successfully!</p>`;
+            return;
+        }
+
         const type = document.getElementById('search-type').value;
         const resDiv = document.getElementById('search-results');
-        if(!q) return; resDiv.innerHTML = "Searching...";
+        resDiv.innerHTML = "Searching...";
 
         try {
             resDiv.innerHTML = "";
             const proxyBase = "https://api.allorigins.win/get?url=";
             
             if (type === 'podcast') {
-                const res = await fetch(`https://itunes.apple.com/search?media=podcast&term=${encodeURIComponent(q)}`);
+                const res = await fetch(`https://itunes.apple.com/search?media=podcast&term=${encodeURIComponent(urlInput)}`);
                 const data = await res.json();
                 data.results.slice(0, 5).forEach(pod => {
                     resDiv.innerHTML += `<div class="glass-card" style="display:flex; justify-content:space-between; align-items:center; padding:15px;"><div><span class="item-title">${pod.collectionName}</span><span class="item-meta">Podcast</span></div><button class="text-btn" onclick="addSubscription('${pod.collectionName.replace(/'/g, "\\'")}', '${pod.feedUrl}')">Add</button></div>`;
                 });
             } 
             else if (type === 'reddit') {
-                const res = await fetch(proxyBase + encodeURIComponent(`https://www.reddit.com/subreddits/search.json?q=${encodeURIComponent(q)}`));
+                const res = await fetch(proxyBase + encodeURIComponent(`https://www.reddit.com/subreddits/search.json?q=${encodeURIComponent(urlInput)}`));
                 const data = JSON.parse((await res.json()).contents);
                 if (data.data && data.data.children) {
                     data.data.children.slice(0, 5).forEach(child => {
@@ -633,7 +678,7 @@
                 }
             } 
             else if (type === 'youtube') {
-                const urlToFetch = q.startsWith("@") ? `https://www.youtube.com/${q}` : q;
+                const urlToFetch = urlInput.startsWith("@") ? `https://www.youtube.com/${urlInput}` : urlInput;
                 const res = await fetch(proxyBase + encodeURIComponent(urlToFetch));
                 const html = (await res.json()).contents;
                 const match = html.match(/"externalId":"(UC[^"]+)"/) || html.match(/channel_id=([a-zA-Z0-9_-]+)/);
@@ -647,7 +692,7 @@
         } catch(e) { resDiv.innerHTML = "Search failed. Check connection."; }
     }
 
-    // --- PROGRESSIVE FEED SYNC ---
+    // --- PROGRESSIVE TIMEOUT FEED SYNC ---
     async function fetchDailyWiki() {
         const today = new Date().toISOString().split('T')[0];
         let cachedWiki = JSON.parse(localStorage.getItem('daily_wiki'));
@@ -659,6 +704,14 @@
             localStorage.setItem('daily_wiki', JSON.stringify({date: today, data: item}));
             return item;
         } catch(e) { return null; }
+    }
+
+    async function fetchWithTimeout(url, ms = 8000) {
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), ms);
+        const response = await fetch(url, { signal: controller.signal });
+        clearTimeout(id);
+        return response;
     }
 
     async function refreshFeed(force = false) {
@@ -676,12 +729,13 @@
 
         db.subs.forEach(async (sub) => {
             try {
-                // Reverted back to stable allorigins wrapper to avoid corsproxy blocks
                 const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(sub.url.trim())}`;
-                const res = await fetch(proxyUrl);
-                const data = await res.json();
+                const res = await fetchWithTimeout(proxyUrl, 10000); // 10s Timeout to prevent hanging
+                const jsonRaw = await res.json();
+                if(!jsonRaw.contents) throw new Error("Empty contents");
+
                 const parser = new DOMParser();
-                const xmlDoc = parser.parseFromString(data.contents, "text/xml");
+                const xmlDoc = parser.parseFromString(jsonRaw.contents, "text/xml");
                 const entries = Array.from(xmlDoc.querySelectorAll("item, entry")).slice(0, 5); 
                 
                 entries.forEach((node, index) => {
@@ -710,8 +764,9 @@
                         renderFeedItems();
                     } else { backgroundCache.push(item); }
                 });
-            } catch (e) {} 
-            finally {
+            } catch (e) {
+                // Fails silently after timeout so it doesn't block completion
+            } finally {
                 completed++;
                 if(completed === totalReqs) {
                     db.feedCache = db.feedCache.concat(backgroundCache);
@@ -733,12 +788,7 @@
         let html = itemsToRender.map(item => {
             let parsedDate = new Date(item.pubDate);
             let dateStr = isNaN(parsedDate) ? "Recent" : parsedDate.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
-            return `
-            <div class="glass-card" onclick='openMediaModal(${JSON.stringify(item).replace(/'/g, "&apos;")})'>
-                <span class="item-meta">${item.source} • ${dateStr}</span>
-                <span class="item-title">${item.title}</span>
-                ${item.extractedImg ? `<img src="${item.extractedImg}" class="feed-img">` : ''}
-            </div>`
+            return `<div class="glass-card" onclick='openMediaModal(${JSON.stringify(item).replace(/'/g, "&apos;")})'><span class="item-meta">${item.source} • ${dateStr}</span><span class="item-title">${item.title}</span>${item.extractedImg ? `<img src="${item.extractedImg}" class="feed-img">` : ''}</div>`;
         }).join('');
 
         if (filteredItems.length > displayLimit) html += `<button class="glass-card" style="width:100%; text-align:center; color:var(--accent); font-weight:bold; cursor:pointer;" onclick="loadMoreFeeds()">Load More ↓</button>`;
@@ -768,8 +818,8 @@
         if(item.type === 'podcast') {
             audioUI.style.display = 'block';
             const audioEl = document.getElementById('main-audio');
-            const videoEl = document.getElementById('main-video');
-            audioEl.style.display = 'none'; videoEl.style.display = 'none';
+            const videoContainer = document.getElementById('yt-container');
+            audioEl.style.display = 'none'; videoContainer.innerHTML = '';
             
             if (item.link && (item.link.includes('youtube.com') || item.link.includes('youtu.be'))) {
                 let vidId = '';
@@ -777,9 +827,9 @@
                 else if(item.link.includes('youtu.be/')) vidId = item.link.split('youtu.be/')[1].split('?')[0];
                 
                 if(vidId) { 
-                    videoEl.src = `https://www.youtube.com/embed/${vidId}?playsinline=1&enablejsapi=1`; 
-                    videoEl.style.display = 'block'; 
-                    setTimeout(() => { if(typeof YT !== 'undefined') ytPlayer = new YT.Player('main-video'); }, 500);
+                    // API hook for snipping time
+                    videoContainer.innerHTML = `<iframe id="main-video" src="https://www.youtube.com/embed/${vidId}?playsinline=1&enablejsapi=1" style="width:100%; aspect-ratio:16/9; border-radius:12px; border:none; margin-bottom:15px;" allowfullscreen></iframe>`;
+                    setTimeout(() => { if(typeof YT !== 'undefined' && YT.Player) { ytPlayer = new YT.Player('main-video'); } }, 1000);
                 }
             } else {
                 audioEl.src = item.enclosure ? item.enclosure.link : '';
@@ -790,29 +840,24 @@
         else if (item.type === 'article') {
             articleUI.style.display = 'block';
             const articleBody = document.getElementById('article-body');
-            const loader = document.getElementById('extract-loader');
             
             let contentHtml = item.content || item.description || "<p>No content provided by the feed.</p>";
             let topImg = item.extractedImg && !contentHtml.includes(item.extractedImg) ? `<img src="${item.extractedImg}" style="width:100%; max-height:300px; object-fit:cover; border-radius:12px; margin-bottom:15px;">` : '';
             
-            // Instantly render RSS snippet
-            articleBody.innerHTML = `${topImg}${contentHtml}<div style="margin-top: 30px; text-align: center;"><button class="glass-card" style="width:100%; color:var(--accent); font-weight:bold; border: 1px solid var(--accent); cursor:pointer;" onclick="window.open('${item.link}', '_blank')">Read Original Webpage</button></div>`;
-            loader.style.display = 'block';
+            articleBody.innerHTML = `${topImg}<div style="font-size:13px; color:var(--accent); text-align:center; margin-bottom:10px;">Extracting full text...</div>${contentHtml}`;
 
-            // Silently fetch full text
             try {
                 const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(item.link)}`;
-                const response = await fetch(proxyUrl);
+                const response = await fetchWithTimeout(proxyUrl, 8000);
                 const data = await response.json();
                 const doc = new DOMParser().parseFromString(data.contents, 'text/html');
                 const reader = new Readability(doc);
                 const article = reader.parse();
                 
-                if(article && article.textContent.length > 300) {
-                    articleBody.innerHTML = topImg + article.content;
-                }
-            } catch(e) { } // If it fails, keep the snippet visible
-            finally { loader.style.display = 'none'; }
+                if(article && article.textContent.length > 300) { articleBody.innerHTML = topImg + article.content; }
+            } catch(e) { } // Silent fail, snippet stays
+            
+            articleBody.innerHTML += `<div style="margin-top: 30px; text-align: center;"><button class="glass-card" style="width:100%; color:var(--accent); font-weight:bold; border: 1px solid var(--accent); cursor:pointer;" onclick="window.open('${item.link}', '_blank')">Read Original Webpage</button></div>`;
         }
     }
 
@@ -847,12 +892,12 @@
     function snipAudio() {
         const modal = document.getElementById('media-modal');
         const audio = document.getElementById('main-audio');
-        const video = document.getElementById('main-video');
         let prefix = ""; let target = modal.dataset.currentLink;
         
         if (audio.style.display === 'block' && audio.src) {
             prefix = `[${Math.floor(audio.currentTime)}s] `;
-        } else if (video.style.display === 'block') {
+            target = Math.floor(audio.currentTime);
+        } else if (document.getElementById('yt-container').innerHTML !== '') {
             if (ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
                 let t = Math.floor(ytPlayer.getCurrentTime());
                 prefix = `[${t}s] `; target += (target.includes('?') ? `&t=${t}s` : `?t=${t}s`);
@@ -962,7 +1007,7 @@
         db.notes[idx] = note; save(); showNextSRS();
     }
 
-    switchTab('inbox'); setTimeout(checkInAppReminders, 1000);
+    switchTab('inbox'); 
 </script>
 </body>
 </html>
