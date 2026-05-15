@@ -117,7 +117,7 @@
             border-radius: 10px; border-left: 3px solid var(--accent); font-size: 15px; color: var(--text);
         }
         
-        #sync-indicator { text-align:center; color:var(--sub); font-size:13px; padding-bottom:10px; display:none; }
+        #sync-indicator { text-align:center; color:var(--accent); font-weight: bold; font-size:13px; padding-bottom:10px; display:none; }
     </style>
 </head>
 <body>
@@ -138,11 +138,14 @@
             <button class="text-btn" onclick="filterFeed('podcast')">Media</button>
             <button class="text-btn" onclick="filterFeed('article')">Articles</button>
             
-            <select class="dropdown-select" style="margin-left:auto;" id="feed-limit-select" onchange="updateFeedLimit(this.value)">
+            <select class="dropdown-select" style="margin-left:auto; margin-right:10px;" id="feed-limit-select" onchange="updateFeedLimit(this.value)">
                 <option value="10">10 / Page</option>
                 <option value="15" selected>15 / Page</option>
                 <option value="25">25 / Page</option>
             </select>
+            
+            <!-- Manual Sync Button -->
+            <button class="icon-btn" onclick="refreshFeed(true)"><span class="material-symbols-outlined">sync</span></button>
         </div>
         <div id="sync-indicator">↻ Syncing latest posts...</div>
         <div id="feed-list"></div>
@@ -156,7 +159,7 @@
                 <option value="reddit">Reddit</option>
                 <option value="youtube">YouTube</option>
             </select>
-            <input type="text" id="lib-search" placeholder="Search or paste YT channel...">
+            <input type="text" id="lib-search" placeholder="Search or paste channel...">
             <button class="text-btn" onclick="searchExplore()">Find</button>
         </div>
         <div id="search-results"></div>
@@ -192,7 +195,6 @@
     <div class="modal-content" id="modal-body">
         
         <div id="modal-audio-ui" style="display:none;">
-            <!-- Added specific YouTube iFrame player -->
             <iframe id="main-video" style="width:100%; aspect-ratio:16/9; border-radius:12px; border:none; margin-bottom:15px; display:none;" allowfullscreen></iframe>
             <audio id="main-audio" controls style="width:100%; margin-bottom:15px; display:none;"></audio>
             
@@ -232,14 +234,11 @@
 </nav>
 
 <script>
-    // --- DATABASE & RECOVERY MIGRATION ---
+    // --- DATABASE MIGRATION ---
     function initDB() {
         let currentDB = JSON.parse(localStorage.getItem('recall_v3_db'));
-        
         if (!currentDB || !currentDB.notes) {
-            currentDB = { subs: [], notes: [], feedCache: [] };
-            
-            // Rescue data from older versions of the app
+            currentDB = { subs: [], notes: [], feedCache: [], lastSync: 0 };
             const oldKeys = ['things_recall_db', 'omni_db', 'rss_highlights', 'rss_feeds'];
             oldKeys.forEach(key => {
                 const oldData = JSON.parse(localStorage.getItem(key));
@@ -249,12 +248,7 @@
                     if (oldData.highlights) currentDB.notes.push(...oldData.highlights);
                 }
             });
-            
-            // Deduplicate recovered notes by ID or text
-            currentDB.notes = currentDB.notes.filter((note, index, self) => 
-                index === self.findIndex((t) => (t.id === note.id || t.text === note.text))
-            );
-            
+            currentDB.notes = currentDB.notes.filter((note, index, self) => index === self.findIndex((t) => (t.id === note.id || t.text === note.text)));
             localStorage.setItem('recall_v3_db', JSON.stringify(currentDB));
         }
         return currentDB;
@@ -285,7 +279,7 @@
         let titleMap = { feed: "Feed", explore: "Explore", inbox: "Inbox" };
         document.getElementById('title').innerText = titleMap[tab];
         
-        if(tab === 'feed') refreshFeed();
+        if(tab === 'feed') refreshFeed(false);
         if(tab === 'inbox') renderInbox();
         if(tab === 'explore') renderLibrary();
     }
@@ -298,7 +292,7 @@
 
     function save() { localStorage.setItem('recall_v3_db', JSON.stringify(db)); }
 
-    // --- EXPLORE LOGIC ---
+    // --- EXPLORE & SUBSCRIPTIONS ---
     function renderLibrary() {
         const list = document.getElementById('sub-list');
         list.innerHTML = db.subs.map((s, i) => `
@@ -316,6 +310,43 @@
             db.subs.push({ title, url }); save(); renderLibrary();
             document.getElementById('search-results').innerHTML = `<p style="color:var(--accent); font-weight:bold;">Added ${title}!</p>`;
         }
+    }
+
+    // Smart OPML URL Sanitizer
+    function sanitizeFeedUrl(url) {
+        if (!url) return null;
+        if (url.includes('youtube.com/channel/')) {
+            const id = url.split('channel/')[1].split('?')[0].split('/')[0];
+            return `https://www.youtube.com/feeds/videos.xml?channel_id=${id}`;
+        }
+        if (url.includes('youtube.com/user/')) {
+            const user = url.split('user/')[1].split('?')[0].split('/')[0];
+            return `https://www.youtube.com/feeds/videos.xml?user=${user}`;
+        }
+        if (url.match(/reddit\.com\/r\/[a-zA-Z0-9_]+$/)) return url + '/.rss';
+        if (url.match(/reddit\.com\/r\/[a-zA-Z0-9_]+\/?$/)) return url.replace(/\/$/, '') + '/.rss';
+        return url;
+    }
+
+    function importOPML(e) {
+        const file = e.target.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const parser = new DOMParser();
+            const xml = parser.parseFromString(event.target.result, "text/xml");
+            let count = 0;
+            xml.querySelectorAll('outline').forEach(o => {
+                let url = o.getAttribute('xmlUrl') || o.getAttribute('xmlurl') || o.getAttribute('url') || o.getAttribute('htmlUrl');
+                url = sanitizeFeedUrl(url);
+                if(url && !db.subs.find(s => s.url === url)) {
+                    db.subs.push({ title: o.getAttribute('title') || o.getAttribute('text') || "Feed", url });
+                    count++;
+                }
+            });
+            save(); alert(`Successfully imported ${count} feeds!`); renderLibrary(); refreshFeed(true);
+        };
+        reader.readAsText(file);
     }
 
     async function searchExplore() {
@@ -379,25 +410,7 @@
         } catch(e) { resDiv.innerHTML = "Search failed. Check connection."; }
     }
 
-    function importOPML(e) {
-        const file = e.target.files[0];
-        if(!file) return;
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const parser = new DOMParser();
-            const xml = parser.parseFromString(event.target.result, "text/xml");
-            xml.querySelectorAll('outline').forEach(o => {
-                const url = o.getAttribute('xmlUrl') || o.getAttribute('xmlurl') || o.getAttribute('url');
-                if(url && !db.subs.find(s => s.url === url)) {
-                    db.subs.push({ title: o.getAttribute('title') || o.getAttribute('text') || "Feed", url });
-                }
-            });
-            save(); alert("OPML Backup Successfully Imported!"); renderLibrary();
-        };
-        reader.readAsText(file);
-    }
-
-    // --- FEED LOGIC ---
+    // --- FEED LOGIC (CACHED & BATCHED) ---
     function updateFeedLimit(val) {
         ITEMS_PER_PAGE = parseInt(val);
         localStorage.setItem('feed_limit', ITEMS_PER_PAGE);
@@ -405,91 +418,121 @@
         renderFeedItems();
     }
 
-    async function fetchRandomWiki() {
+    async function fetchDailyWiki() {
+        const today = new Date().toISOString().split('T')[0];
+        let cachedWiki = JSON.parse(localStorage.getItem('daily_wiki'));
+        
+        if (cachedWiki && cachedWiki.date === today) {
+            return cachedWiki.data;
+        }
+        
         try {
             const res = await fetch('https://en.wikipedia.org/api/rest_v1/page/random/summary');
             const data = await res.json();
-            return { 
+            const item = { 
                 title: data.title, link: data.content_urls.desktop.page, 
-                source: 'Wikipedia (Daily Random)', pubDate: new Date().toISOString(), type: 'article',
+                source: 'Wikipedia Daily', pubDate: new Date().toISOString(), type: 'article',
                 content: data.extract_html, extractedImg: data.thumbnail ? data.thumbnail.source : null
             };
+            localStorage.setItem('daily_wiki', JSON.stringify({date: today, data: item}));
+            return item;
         } catch(e) { return null; }
     }
 
-    async function refreshFeed() {
+    async function refreshFeed(force = false) {
         const syncInd = document.getElementById('sync-indicator');
-        if (db.feedCache && db.feedCache.length > 0) renderFeedItems();
+        
+        // 1. Render Cache Instantly
+        if (db.feedCache && db.feedCache.length > 0) {
+            renderFeedItems();
+        }
+        
+        // 2. Prevent spam syncing. Only sync if forced or if older than 30 mins
+        const now = Date.now();
+        if (!force && db.lastSync && (now - db.lastSync < 1800000)) {
+            return; 
+        }
+        
         syncInd.style.display = 'block';
         
-        let streamingItems = [];
+        let newItems = [];
+        const wiki = await fetchDailyWiki();
+        if(wiki) newItems.push(wiki);
+
+        // Fetch in safe batches of 5 to prevent proxy bans
+        const BATCH_SIZE = 5;
         let completed = 0;
-
-        fetchRandomWiki().then(wiki => {
-            if(wiki) { streamingItems.push(wiki); updateStreamingUI(streamingItems); }
-        });
-
-        db.subs.forEach(async (sub) => {
-            try {
-                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(sub.url.trim())}`;
-                const res = await fetch(proxyUrl);
-                const data = await res.json();
-                const parser = new DOMParser();
-                const xmlDoc = parser.parseFromString(data.contents, "text/xml");
-                
-                const entries = Array.from(xmlDoc.querySelectorAll("item, entry")).slice(0, 10);
-                
-                entries.forEach(node => {
-                    const title = node.querySelector("title")?.textContent || "Untitled";
-                    const linkNode = node.querySelector("link");
-                    const link = linkNode ? (linkNode.textContent || linkNode.getAttribute("href")) : "";
-                    const pubDateRaw = node.querySelector("pubDate, published, updated")?.textContent || new Date().toISOString();
+        
+        for (let i = 0; i < db.subs.length; i += BATCH_SIZE) {
+            const batch = db.subs.slice(i, i + BATCH_SIZE);
+            const promises = batch.map(async (sub) => {
+                try {
+                    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(sub.url.trim())}`;
+                    const res = await fetch(proxyUrl);
+                    const data = await res.json();
+                    const parser = new DOMParser();
+                    const xmlDoc = parser.parseFromString(data.contents, "text/xml");
                     
-                    let content = node.getElementsByTagNameNS("*", "encoded").length > 0 ? 
-                                  node.getElementsByTagNameNS("*", "encoded")[0].textContent : 
-                                  (node.querySelector("description, content")?.textContent || "");
+                    const entries = Array.from(xmlDoc.querySelectorAll("item, entry")).slice(0, 8);
+                    
+                    return entries.map(node => {
+                        const title = node.querySelector("title")?.textContent || "Untitled";
+                        const linkNode = node.querySelector("link");
+                        const link = linkNode ? (linkNode.textContent || linkNode.getAttribute("href")) : "";
+                        const pubDateRaw = node.querySelector("pubDate, published, updated")?.textContent || new Date().toISOString();
+                        
+                        let content = node.getElementsByTagNameNS("*", "encoded").length > 0 ? 
+                                      node.getElementsByTagNameNS("*", "encoded")[0].textContent : 
+                                      (node.querySelector("description, content")?.textContent || "");
 
-                    const enclosure = node.querySelector("enclosure");
-                    const encUrl = enclosure ? enclosure.getAttribute("url") : null;
-                    const encType = enclosure ? enclosure.getAttribute("type") : "";
+                        const enclosure = node.querySelector("enclosure");
+                        const encUrl = enclosure ? enclosure.getAttribute("url") : null;
+                        const encType = enclosure ? enclosure.getAttribute("type") : "";
 
-                    const mediaThumb = node.querySelector("thumbnail")?.getAttribute("url") || node.querySelector("image")?.getAttribute("href");
-                    let extractedImg = mediaThumb || (encType.startsWith('image') ? encUrl : null);
-                    if (!extractedImg) {
-                        const imgMatch = content.match(/<img[^>]+src="([^">]+)"/);
-                        if (imgMatch) extractedImg = imgMatch[1];
-                    }
+                        const mediaThumb = node.querySelector("thumbnail")?.getAttribute("url") || node.querySelector("image")?.getAttribute("href");
+                        let extractedImg = mediaThumb || (encType.startsWith('image') ? encUrl : null);
+                        if (!extractedImg) {
+                            const imgMatch = content.match(/<img[^>]+src="([^">]+)"/);
+                            if (imgMatch) extractedImg = imgMatch[1];
+                        }
 
-                    let type = 'article';
-                    if (link.includes('youtube') || 
-                        (encType && (encType.includes('audio') || encType.includes('video'))) || 
-                        (encUrl && encUrl.match(/\.(mp3|m4a|wav|mp4)/i))) {
-                        type = 'podcast';
-                    }
+                        let type = 'article';
+                        if (link.includes('youtube') || 
+                            (encType && (encType.includes('audio') || encType.includes('video'))) || 
+                            (encUrl && encUrl.match(/\.(mp3|m4a|wav|mp4)/i))) {
+                            type = 'podcast';
+                        }
 
-                    streamingItems.push({
-                        title, link, pubDate: pubDateRaw, content, source: sub.title,
-                        extractedImg, type, enclosure: encUrl ? { link: encUrl } : null
+                        return {
+                            title, link, pubDate: pubDateRaw, content, source: sub.title,
+                            extractedImg, type, enclosure: encUrl ? { link: encUrl } : null
+                        };
                     });
-                });
-            } catch (e) {
-                // Fail silently
-            } finally {
-                completed++;
-                updateStreamingUI(streamingItems);
-                if (completed === db.subs.length) syncInd.style.display = 'none';
-            }
-        });
-    }
+                } catch (e) {
+                    return []; // Fail silently for this feed
+                }
+            });
 
-    function updateStreamingUI(items) {
-        db.feedCache = items.sort((a,b) => {
+            const batchResults = await Promise.all(promises);
+            newItems.push(...batchResults.flat());
+            
+            completed += batch.length;
+            syncInd.innerText = `↻ Syncing latest posts... (${Math.round((completed/db.subs.length)*100)}%)`;
+        }
+
+        // Sort properly
+        db.feedCache = newItems.sort((a,b) => {
             let tA = new Date(a.pubDate).getTime();
             let tB = new Date(b.pubDate).getTime();
-            if(isNaN(tA)) tA = 0;
-            if(isNaN(tB)) tB = 0;
+            if(isNaN(tA)) tA = 0; if(isNaN(tB)) tB = 0;
             return tB - tA;
         });
+        
+        db.lastSync = Date.now();
+        save();
+        
+        syncInd.style.display = 'none';
+        displayLimit = ITEMS_PER_PAGE;
         renderFeedItems();
     }
 
@@ -526,13 +569,13 @@
         list.innerHTML = html;
     }
 
-    // --- MODALS & YOUTUBE PLAYER ---
+    // --- MODALS & READER ---
     function closeModal(id) {
         const m = document.getElementById(id);
         m.classList.remove('open');
         if(id === 'media-modal') {
             document.getElementById('main-audio').pause();
-            document.getElementById('main-video').src = ''; // Stop YT video from playing in background
+            document.getElementById('main-video').src = '';
         }
         setTimeout(() => { m.style.display = 'none'; }, 300);
     }
@@ -560,7 +603,6 @@
             audioEl.style.display = 'none';
             videoEl.style.display = 'none';
             
-            // Check if YouTube link
             if (item.link && (item.link.includes('youtube.com') || item.link.includes('youtu.be'))) {
                 let vidId = '';
                 if(item.link.includes('v=')) vidId = item.link.split('v=')[1].split('&')[0];
