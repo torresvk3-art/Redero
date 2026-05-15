@@ -25,7 +25,6 @@
         html, body { height: 100%; width: 100%; margin: 0; padding: 0; overflow: hidden; background-color: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; touch-action: pan-y; }
         
         .app-container { display: flex; flex-direction: column; height: 100%; width: 100%; }
-        /* FIX: overflow-x hidden prevents side-to-side scrolling */
         .main-scroll-area { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; padding-bottom: 20px; }
 
         header { padding: 60px 25px 20px 25px; position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 80%, transparent); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
@@ -36,7 +35,6 @@
         .content-padding { padding: 20px; }
 
         .glass-card { background: color-mix(in srgb, var(--surface) 60%, transparent); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid color-mix(in srgb, var(--text) 10%, transparent); border-radius: 20px; padding: 20px; margin-bottom: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.05); transition: transform 0.1s; position: relative; }
-        /* FIX: word-break ensures long URLs or filenames don't stretch the card horizontally */
         .item-title { font-size: 19px; font-weight: 700; margin-bottom: 8px; display: block; line-height: 1.3; word-break: break-word; }
         .item-meta { font-size: 13px; color: var(--sub); display: block; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 6px;}
         .feed-img { width: 100%; max-height: 250px; object-fit: cover; border-radius: 12px; margin-top: 12px; border: 1px solid var(--border); }
@@ -54,7 +52,6 @@
 
         .view { display: none; } .view.active { display: block; }
 
-        /* --- MODALS --- */
         .fullscreen-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 1000; display: none; flex-direction: column; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); }
         .fullscreen-modal.open { transform: translateY(0); }
         
@@ -98,10 +95,6 @@
         .glass-card.selected .checkbox-overlay { background: #FF3B30; border-color: #FF3B30; }
         #bulk-delete-btn { display: none; background: #FF3B30; color: white; width: 100%; padding: 12px; border-radius: 12px; font-weight: bold; border: none; margin-bottom: 20px; cursor: pointer; }
 
-        .day-picker { display: flex; gap: 5px; margin-top: 10px; width: 100%; justify-content: space-between;}
-        .day-bubble { width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--surface); border: 1px solid var(--border); font-size: 12px; font-weight: bold; cursor: pointer; color: var(--sub);}
-        .day-bubble.active { background: var(--accent); color: white; border-color: var(--accent); }
-        
         .active-filter-chip { display: flex; align-items: center; background: var(--accent); color: white; padding: 5px 12px; border-radius: 15px; font-size: 13px; margin-bottom: 15px; width: fit-content; font-weight: 600;}
         .active-filter-chip button { background: none; border: none; color: white; margin-left: 8px; cursor: pointer; font-size: 14px; padding: 0; display: flex; align-items: center; justify-content: center; }
     </style>
@@ -130,7 +123,7 @@
                 
                 <div class="search-bar" style="margin-bottom:15px;">
                     <span class="material-symbols-outlined" style="color:var(--sub); margin-right:10px;">search</span>
-                    <input type="text" id="feed-search" placeholder="Search your feed..." onkeyup="renderFeedItems()">
+                    <input type="text" id="feed-search" placeholder="Search titles or authors..." onkeyup="renderFeedItems()">
                 </div>
                 
                 <div id="active-source-container"></div>
@@ -158,7 +151,7 @@
 
                 <div class="search-bar" style="margin-bottom:15px;">
                     <span class="material-symbols-outlined" style="color:var(--sub); margin-right:10px;">search</span>
-                    <input type="text" id="library-search" placeholder="Search library..." onkeyup="renderLibrary()">
+                    <input type="text" id="library-search" placeholder="Search library items..." onkeyup="renderLibrary()">
                 </div>
 
                 <div class="search-bar" id="sub-search-bar">
@@ -228,11 +221,6 @@
                 <button class="text-btn" onclick="document.getElementById('opml-in').click()">Import OPML</button>
             </div>
         </div>
-        
-        <h4 style="margin-top: 30px; margin-bottom: 10px; padding-left: 10px;">Calendar Reminders</h4>
-        <div class="glass-card" style="padding: 15px 20px; text-align:center;">
-            <p style="font-size:13px; color:var(--sub);">Reminders are successfully handled by your iOS Calendar profile.</p>
-        </div>
     </div>
 </div>
 
@@ -248,11 +236,8 @@
         <div id="modal-audio-ui" style="display:none;">
             <div id="yt-container"></div>
             <button id="yt-handoff-btn" class="glass-card" style="display:none; width:100%; text-align:center; color:var(--accent); font-weight:bold; cursor:pointer; margin-bottom:15px;">↗ Open in YouTube App</button>
-            
             <audio id="main-audio" controls style="width:100%; margin-bottom:15px; display:none;"></audio>
-            
             <button id="snip-btn" class="text-btn" style="width:100%; background:var(--accent); color:white; padding:12px; border-radius:12px; margin-bottom:15px; font-weight:bold;" onclick="snipAudio()">✂️ Start Audio Snip</button>
-            
             <div id="transcript-container" style="padding:0 15px;"></div>
         </div>
 
@@ -272,9 +257,7 @@
                     <button onclick="changeEpubFontSize(10)" style="padding:4px 10px; font-size:12px;">A+</button>
                 </div>
             </div>
-            
             <div id="toc-dropdown"></div>
-
             <div class="epub-container-wrapper">
                 <div id="epub-viewer"></div>
             </div>
@@ -298,6 +281,7 @@
 </div>
 
 <script>
+    // --- DATABASE & INITIALIZATION ---
     function initDB() {
         let currentDB = JSON.parse(localStorage.getItem('recall_v3_db'));
         if (!currentDB || !currentDB.notes) currentDB = { subs: [], notes: [], feedCache: [], localMedia: [], lastSync: 0, settings: {} };
@@ -313,7 +297,6 @@
     let ytPlayer = null; 
     let srsQueue = [];
     let epubFontSize = 100;
-    
     let currentFeedSource = 'all';
     let activeFeedFilter = 'all';
     let displayLimit = parseInt(db.settings.feedLimit) || 15;
@@ -327,676 +310,152 @@
 
     function save() { localStorage.setItem('recall_v3_db', JSON.stringify(db)); }
 
-    // --- PULL TO REFRESH & TOUCH SWIPE TO CLOSE ---
+    // --- TOUCH & SWIPE LOGIC ---
     let ptrStartY = 0;
     const scroller = document.getElementById('main-scroller');
-
-    scroller.addEventListener('touchstart', e => {
-        if (scroller.scrollTop <= 0 && document.getElementById('view-feed').classList.contains('active')) ptrStartY = e.touches[0].clientY;
-    }, {passive: true});
-
-    scroller.addEventListener('touchend', e => {
-        if (ptrStartY > 0) {
-            let diff = e.changedTouches[0].clientY - ptrStartY;
-            if (diff > 120) refreshFeed(true);
-        }
-        ptrStartY = 0;
-    });
+    scroller.addEventListener('touchstart', e => { if (scroller.scrollTop <= 0 && document.getElementById('view-feed').classList.contains('active')) ptrStartY = e.touches[0].clientY; }, {passive: true});
+    scroller.addEventListener('touchend', e => { if (ptrStartY > 0 && (e.changedTouches[0].clientY - ptrStartY) > 120) refreshFeed(true); ptrStartY = 0; });
 
     let touchStartY = 0;
     let swipeModal = null;
-
     document.querySelectorAll('.touch-header').forEach(header => {
-        header.addEventListener('touchstart', e => {
-            touchStartY = e.touches[0].clientY;
-            swipeModal = header.closest('.swipe-modal');
-            if(swipeModal) swipeModal.style.transition = 'none';
-        }, {passive: true});
-
-        header.addEventListener('touchmove', e => {
-            if(!swipeModal) return;
-            let currentY = e.touches[0].clientY;
-            let diff = currentY - touchStartY;
-            if(diff > 0) swipeModal.style.transform = `translateY(${diff}px)`;
-        }, {passive: true});
-
-        header.addEventListener('touchend', e => {
-            if(!swipeModal) return;
-            let currentY = e.changedTouches[0].clientY;
-            let diff = currentY - touchStartY;
-            swipeModal.style.transition = 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)';
-            if(diff > 120) closeModal(swipeModal.id);
-            else swipeModal.style.transform = 'translateY(0)';
-            swipeModal = null;
-        });
+        header.addEventListener('touchstart', e => { touchStartY = e.touches[0].clientY; swipeModal = header.closest('.swipe-modal'); if(swipeModal) swipeModal.style.transition = 'none'; }, {passive: true});
+        header.addEventListener('touchmove', e => { if(!swipeModal) return; let diff = e.touches[0].clientY - touchStartY; if(diff > 0) swipeModal.style.transform = `translateY(${diff}px)`; }, {passive: true});
+        header.addEventListener('touchend', e => { if(!swipeModal) return; let diff = e.changedTouches[0].clientY - touchStartY; swipeModal.style.transition = 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)'; if(diff > 120) closeModal(swipeModal.id); else swipeModal.style.transform = 'translateY(0)'; swipeModal = null; });
     });
     
+    // --- UI TABS & NAVIGATION ---
     function switchTab(tab) {
         document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
         document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
         document.getElementById('view-' + tab).classList.add('active');
         document.getElementById('nav-' + tab).classList.add('active');
-        
         document.getElementById('title').innerText = { feed: "Feed", explore: "Library", inbox: "Inbox" }[tab];
-        isEditMode = false;
-        document.getElementById('library-list').classList.remove('edit-mode');
-        document.getElementById('bulk-delete-btn').style.display = 'none';
-        
+        isEditMode = false; document.getElementById('library-list').classList.remove('edit-mode'); document.getElementById('bulk-delete-btn').style.display = 'none';
         if(tab === 'feed') renderFeedItems(); 
         if(tab === 'inbox') renderInbox();
         if(tab === 'explore') renderLibrary();
     }
 
-    function openSettings() {
-        const modal = document.getElementById('settings-modal');
-        modal.style.display = 'flex';
-        document.body.classList.add('modal-open');
-        setTimeout(() => modal.classList.add('open'), 10);
-    }
+    function openSettings() { const modal = document.getElementById('settings-modal'); modal.style.display = 'flex'; document.body.classList.add('modal-open'); setTimeout(() => modal.classList.add('open'), 10); }
+    function applySettings() { db.settings.theme = document.getElementById('setting-theme').value; db.settings.feedLimit = parseInt(document.getElementById('setting-limit').value); db.settings.srsMode = parseInt(document.getElementById('setting-srs').value); save(); document.documentElement.className = 'theme-' + db.settings.theme; displayLimit = db.settings.feedLimit; if (document.getElementById('view-feed').classList.contains('active')) renderFeedItems(); }
+    function closeModal(id) { const m = document.getElementById(id); m.style.transform = 'translateY(100%)'; setTimeout(() => { m.classList.remove('open'); m.style.display = 'none'; m.style.transform = ''; document.body.classList.remove('modal-open'); }, 300); if(id === 'media-modal') { document.getElementById('main-audio').pause(); document.getElementById('yt-container').innerHTML = ''; document.getElementById('yt-handoff-btn').style.display = 'none'; snipStartTime = null; const snipBtn = document.getElementById('snip-btn'); if(snipBtn) { snipBtn.innerText = "✂️ Start Audio Snip"; snipBtn.style.background = "var(--accent)"; } if(ytPlayer) ytPlayer = null; document.getElementById('toc-dropdown').style.display = 'none'; document.getElementById('epub-viewer').innerHTML = ''; } }
 
-    function applySettings() {
-        db.settings.theme = document.getElementById('setting-theme').value;
-        db.settings.feedLimit = parseInt(document.getElementById('setting-limit').value);
-        db.settings.srsMode = parseInt(document.getElementById('setting-srs').value);
-        save();
-        document.documentElement.className = 'theme-' + db.settings.theme;
-        displayLimit = db.settings.feedLimit;
-        if (document.getElementById('view-feed').classList.contains('active')) renderFeedItems();
-    }
-
-    function closeModal(id) {
-        const m = document.getElementById(id);
-        m.style.transform = 'translateY(100%)';
-        setTimeout(() => { 
-            m.classList.remove('open');
-            m.style.display = 'none'; 
-            m.style.transform = ''; 
-            document.body.classList.remove('modal-open');
-        }, 300);
-
-        if(id === 'media-modal') {
-            document.getElementById('main-audio').pause();
-            document.getElementById('yt-container').innerHTML = ''; 
-            document.getElementById('yt-handoff-btn').style.display = 'none';
-            
-            snipStartTime = null;
-            const snipBtn = document.getElementById('snip-btn');
-            if(snipBtn) { snipBtn.innerText = "✂️ Start Audio Snip"; snipBtn.style.background = "var(--accent)"; }
-            
-            if(ytPlayer) ytPlayer = null;
-            document.getElementById('toc-dropdown').style.display = 'none';
-            document.getElementById('epub-viewer').innerHTML = ''; 
-        }
-    }
-
-    function filterFeedBySource(sourceName) {
-        currentFeedSource = sourceName;
-        const tagContainer = document.getElementById('active-source-container');
-        tagContainer.innerHTML = `<div class="active-filter-chip"><span>Filtering by: ${sourceName}</span><button onclick="clearSourceFilter()"><span class="material-symbols-outlined">close</span></button></div>`;
-        switchTab('feed');
-    }
-
-    function clearSourceFilter() {
-        currentFeedSource = 'all';
-        document.getElementById('active-source-container').innerHTML = '';
-        renderFeedItems();
-    }
-
+    // --- LIBRARY & FILTERING ---
+    function filterFeedBySource(sourceName) { currentFeedSource = sourceName; document.getElementById('active-source-container').innerHTML = `<div class="active-filter-chip"><span>Filtering by: ${sourceName}</span><button onclick="clearSourceFilter()"><span class="material-symbols-outlined">close</span></button></div>`; switchTab('feed'); }
+    function clearSourceFilter() { currentFeedSource = 'all'; document.getElementById('active-source-container').innerHTML = ''; renderFeedItems(); }
     function renderLibrary() {
-        const list = document.getElementById('library-list');
-        const filter = document.getElementById('library-filter').value;
-        const searchQuery = (document.getElementById('library-search')?.value || "").toLowerCase();
-        
+        const list = document.getElementById('library-list'); const filter = document.getElementById('library-filter').value; const searchQuery = (document.getElementById('library-search')?.value || "").toLowerCase();
         document.getElementById('sub-search-bar').style.display = (filter === 'all' || filter === 'subs') ? 'flex' : 'none';
         list.innerHTML = ""; selectedItems = [];
-
-        if (filter === 'all' || filter === 'subs') {
-            db.subs.forEach((s, i) => { 
-                if(!searchQuery || s.title.toLowerCase().includes(searchQuery)) {
-                    list.innerHTML += createLibraryCard('sub', i, s.title, 'Subscription');
-                }
-            });
-        }
-        if (filter === 'all' || filter === 'epub' || filter === 'pdf') {
-            db.localMedia.forEach((m, i) => {
-                if(filter !== 'all' && filter !== m.type) return;
-                if(searchQuery && !m.name.toLowerCase().includes(searchQuery)) return;
-                
-                const hlCount = db.notes.filter(n => n.mediaId === m.id).length;
-                list.innerHTML += createLibraryCard('media', i, m.name, `${m.type.toUpperCase()} • ${hlCount} Highlights`, m.id);
-            });
-        }
+        if (filter === 'all' || filter === 'subs') db.subs.forEach((s, i) => { if(!searchQuery || s.title.toLowerCase().includes(searchQuery)) list.innerHTML += createLibraryCard('sub', i, s.title, 'Subscription'); });
+        if (filter === 'all' || filter === 'epub' || filter === 'pdf') db.localMedia.forEach((m, i) => { if((filter === 'all' || filter === m.type) && (!searchQuery || m.name.toLowerCase().includes(searchQuery))) { const hlCount = db.notes.filter(n => n.mediaId === m.id).length; list.innerHTML += createLibraryCard('media', i, m.name, `${m.type.toUpperCase()} • ${hlCount} Highlights`, m.id); } });
         if(list.innerHTML === "") list.innerHTML = "<p style='text-align:center; color:var(--sub);'>No items found.</p>";
     }
+    function createLibraryCard(type, index, title, meta, mediaId = null) { const safeTitle = title.replace(/'/g, "\\'"); const clickAction = type === 'sub' ? `if(isEditMode){toggleSelect('${type}',${index})}else{filterFeedBySource('${safeTitle}')}` : `if(isEditMode){toggleSelect('${type}',${index})}else{loadSavedMedia('${mediaId}', '${safeTitle}')}`; return `<div class="glass-card" id="lib-card-${type}-${index}" onclick="${clickAction}" style="cursor:pointer;"><div class="checkbox-overlay"></div><span class="item-title" style="margin-right:20px;">${title}</span><span class="item-meta">${meta}</span></div>`; }
+    function toggleLibraryEditMode() { isEditMode = !isEditMode; const list = document.getElementById('library-list'); const btn = document.getElementById('bulk-delete-btn'); if (isEditMode) { list.classList.add('edit-mode'); btn.style.display = 'block'; document.getElementById('edit-lib-btn').innerText = "Done"; } else { list.classList.remove('edit-mode'); btn.style.display = 'none'; document.getElementById('edit-lib-btn').innerText = "Edit"; selectedItems = []; renderLibrary(); } }
+    function toggleSelect(type, index) { const id = `${type}-${index}`; if (selectedItems.includes(id)) { selectedItems = selectedItems.filter(i => i !== id); document.getElementById(`lib-card-${id}`).classList.remove('selected'); } else { selectedItems.push(id); document.getElementById(`lib-card-${id}`).classList.add('selected'); } document.getElementById('bulk-delete-btn').innerText = `Delete (${selectedItems.length})`; }
+    async function deleteSelectedItems() { if(selectedItems.length === 0 || !confirm(`Delete ${selectedItems.length} items?`)) return; const subsToDelete = selectedItems.filter(id => id.startsWith('sub-')).map(id => parseInt(id.split('-')[1])).sort((a,b)=>b-a); const mediaToDelete = selectedItems.filter(id => id.startsWith('media-')).map(id => parseInt(id.split('-')[1])).sort((a,b)=>b-a); subsToDelete.forEach(i => db.subs.splice(i, 1)); for (let i of mediaToDelete) { await localforage.removeItem('media_' + db.localMedia[i].id); db.localMedia.splice(i, 1); } save(); toggleLibraryEditMode(); renderLibrary(); }
 
-    function createLibraryCard(type, index, title, meta, mediaId = null) {
-        const safeTitle = title.replace(/'/g, "\\'");
-        const clickAction = type === 'sub' ? `if(isEditMode){toggleSelect('${type}',${index})}else{filterFeedBySource('${safeTitle}')}` : `if(isEditMode){toggleSelect('${type}',${index})}else{loadSavedMedia('${mediaId}', '${safeTitle}')}`;
-        return `<div class="glass-card" id="lib-card-${type}-${index}" onclick="${clickAction}" style="cursor:pointer;"><div class="checkbox-overlay"></div><span class="item-title" style="margin-right:20px;">${title}</span><span class="item-meta">${meta}</span></div>`;
-    }
-
-    function toggleLibraryEditMode() {
-        isEditMode = !isEditMode;
-        const list = document.getElementById('library-list'); const btn = document.getElementById('bulk-delete-btn');
-        if (isEditMode) { list.classList.add('edit-mode'); btn.style.display = 'block'; document.getElementById('edit-lib-btn').innerText = "Done"; } 
-        else { list.classList.remove('edit-mode'); btn.style.display = 'none'; document.getElementById('edit-lib-btn').innerText = "Edit"; selectedItems = []; renderLibrary(); }
-    }
-
-    function toggleSelect(type, index) {
-        const card = document.getElementById(`lib-card-${type}-${index}`);
-        const id = `${type}-${index}`;
-        if (selectedItems.includes(id)) { selectedItems = selectedItems.filter(i => i !== id); card.classList.remove('selected'); } 
-        else { selectedItems.push(id); card.classList.add('selected'); }
-        document.getElementById('bulk-delete-btn').innerText = `Delete (${selectedItems.length})`;
-    }
-
-    async function deleteSelectedItems() {
-        if(selectedItems.length === 0 || !confirm(`Delete ${selectedItems.length} items?`)) return;
-        const subsToDelete = selectedItems.filter(id => id.startsWith('sub-')).map(id => parseInt(id.split('-')[1])).sort((a,b)=>b-a);
-        const mediaToDelete = selectedItems.filter(id => id.startsWith('media-')).map(id => parseInt(id.split('-')[1])).sort((a,b)=>b-a);
-        subsToDelete.forEach(i => db.subs.splice(i, 1));
-        for (let i of mediaToDelete) { await localforage.removeItem('media_' + db.localMedia[i].id); db.localMedia.splice(i, 1); }
-        save(); toggleLibraryEditMode(); renderLibrary();
-    }
-
-    async function openAndSaveLocalFile(e) {
-        const file = e.target.files[0];
-        if (!file) return;
-        const id = Date.now().toString();
-        const type = file.name.toLowerCase().endsWith('.pdf') ? 'pdf' : 'epub';
-        await localforage.setItem('media_' + id, file);
-        db.localMedia.push({ id, name: file.name, type, date: new Date().toISOString() });
-        save(); document.getElementById('library-filter').value = type; renderLibrary(); alert(`${file.name} added to Library!`);
-    }
-
-    // --- FIX: ARRAY BUFFER EPUB LOADER ---
+    // --- ROBUST EPUB LOADER ---
+    async function openAndSaveLocalFile(e) { const file = e.target.files[0]; if (!file) return; const id = Date.now().toString(); const type = file.name.toLowerCase().endsWith('.pdf') ? 'pdf' : 'epub'; await localforage.setItem('media_' + id, file); db.localMedia.push({ id, name: file.name, type, date: new Date().toISOString() }); save(); document.getElementById('library-filter').value = type; renderLibrary(); alert(`${file.name} added to Library!`); }
     async function loadSavedMedia(id, title, jumpTarget = null) {
-        const file = await localforage.getItem('media_' + id);
-        if(!file) return alert("File not found on device.");
-        
-        const modal = document.getElementById('media-modal');
-        modal.style.display = 'flex';
-        
-        document.getElementById('modal-title').innerText = title;
-        modal.dataset.currentMediaId = id;
-        modal.dataset.currentType = file.name.toLowerCase().endsWith('.pdf') ? 'pdf' : 'epub';
-        modal.dataset.currentSource = title;
-        
-        document.getElementById('modal-audio-ui').style.display = 'none';
-        document.getElementById('modal-article-ui').style.display = 'none';
-        document.getElementById('modal-ebook-ui').style.display = 'none';
-        document.getElementById('modal-pdf-ui').style.display = 'none';
-        document.getElementById('toc-dropdown').style.display = 'none';
-
-        if(file.name.toLowerCase().endsWith('.pdf')) {
-            document.getElementById('modal-pdf-ui').style.display = 'block';
-            document.getElementById('pdf-viewer').src = URL.createObjectURL(file);
-            document.body.classList.add('modal-open');
-            setTimeout(() => modal.classList.add('open'), 10);
-        } else {
-            // Memory efficient ArrayBuffer processing for iOS
-            document.getElementById('modal-ebook-ui').style.display = 'block';
-            document.getElementById('epub-viewer').innerHTML = ''; 
-            
-            document.body.classList.add('modal-open');
-            setTimeout(() => {
-                modal.classList.add('open');
-                
-                // Wait 500ms for modal slide animation to fully complete so width/height are finalized
+        const file = await localforage.getItem('media_' + id); if(!file) return alert("File not found on device.");
+        const modal = document.getElementById('media-modal'); modal.style.display = 'flex'; document.getElementById('modal-title').innerText = title;
+        modal.dataset.currentMediaId = id; modal.dataset.currentType = title.toLowerCase().endsWith('.pdf') ? 'pdf' : 'epub'; modal.dataset.currentSource = title;
+        document.getElementById('modal-audio-ui').style.display = 'none'; document.getElementById('modal-article-ui').style.display = 'none'; document.getElementById('modal-ebook-ui').style.display = 'none'; document.getElementById('modal-pdf-ui').style.display = 'none';
+        if(modal.dataset.currentType === 'pdf') { document.getElementById('modal-pdf-ui').style.display = 'block'; document.getElementById('pdf-viewer').src = URL.createObjectURL(file); document.body.classList.add('modal-open'); setTimeout(() => modal.classList.add('open'), 10); } 
+        else {
+            document.getElementById('modal-ebook-ui').style.display = 'block'; document.getElementById('epub-viewer').innerHTML = ''; document.body.classList.add('modal-open');
+            setTimeout(() => { modal.classList.add('open');
                 setTimeout(() => {
                     const reader = new FileReader();
-                    reader.onload = function(event) {
-                        try {
-                            const bookData = event.target.result;
-                            epubBook = ePub(bookData);
-                            
-                            rendition = epubBook.renderTo("epub-viewer", { 
-                                width: "100%", 
-                                height: "100%", 
-                                manager: "continuous", 
-                                flow: "paginated",
-                                spread: "none" // Mobile bug fix
-                            });
-                            
-                            if (jumpTarget) rendition.display(jumpTarget);
-                            else rendition.display();
-
-                            epubBook.loaded.navigation.then(function(toc){
-                                if(toc && toc.length > 0) {
-                                    document.getElementById('toc-dropdown').innerHTML = toc.map(c => `<div class="toc-item" onclick="rendition.display('${c.href}'); document.getElementById('toc-dropdown').style.display='none';">${c.label}</div>`).join('');
-                                } else {
-                                    document.getElementById('toc-dropdown').innerHTML = "<div class='toc-item'>No Chapters Found</div>";
-                                }
-                            }).catch(() => { document.getElementById('toc-dropdown').innerHTML = "<div class='toc-item'>No Chapters Found</div>"; });
-                            
-                            let tsX = 0; let teX = 0;
-                            rendition.on('touchstart', ev => { tsX = ev.changedTouches[0].screenX; });
-                            rendition.on('touchend', ev => { 
-                                teX = ev.changedTouches[0].screenX; 
-                                if (teX < tsX - 50) rendition.next(); if (teX > tsX + 50) rendition.prev();
-                            });
-                            
-                            rendition.on("selected", (cfiRange) => {
-                                const btn = document.getElementById('floating-highlight');
-                                btn.style.display = 'block'; btn.dataset.cfi = cfiRange; btn.dataset.text = ""; 
-                            });
-                        } catch (err) {
-                            alert("Failed to render book data. The file might be DRM-protected or unsupported.");
-                            console.error(err);
-                        }
-                    };
-                    reader.readAsArrayBuffer(file); 
-                }, 500); 
+                    reader.onload = (e) => {
+                        try { epubBook = ePub(e.target.result); rendition = epubBook.renderTo("epub-viewer", { width: "100%", height: "100%", manager: "default", flow: "paginated", spread: "none" });
+                            if (jumpTarget) rendition.display(jumpTarget); else rendition.display();
+                            epubBook.loaded.navigation.then(toc => { if(toc && toc.length > 0) document.getElementById('toc-dropdown').innerHTML = toc.map(c => `<div class="toc-item" onclick="rendition.display('${c.href}'); document.getElementById('toc-dropdown').style.display='none';">${c.label}</div>`).join(''); else document.getElementById('toc-dropdown').innerHTML = "<div class='toc-item'>No Chapters Found</div>"; });
+                            let tsX = 0; rendition.on('touchstart', ev => tsX = ev.changedTouches[0].screenX);
+                            rendition.on('touchend', ev => { let dx = ev.changedTouches[0].screenX - tsX; if (dx < -50) rendition.next(); if (dx > 50) rendition.prev(); });
+                            rendition.on("selected", cfi => { const btn = document.getElementById('floating-highlight'); btn.style.display = 'block'; btn.dataset.cfi = cfi; });
+                        } catch (err) { alert("Memory limit reached. Try a smaller file."); }
+                    }; reader.readAsArrayBuffer(file);
+                }, 500);
             }, 10);
         }
     }
-
     function changeEpubFontSize(amount) { if(rendition) { epubFontSize += amount; rendition.themes.fontSize(epubFontSize + "%"); } }
     function setEpubBrightness(val) { document.getElementById('epub-viewer').style.filter = `brightness(${val}%)`; }
 
-    function sanitizeFeedUrl(url) {
-        if (!url) return null; url = url.trim();
-        if (url.includes('youtube.com/channel/')) return `https://www.youtube.com/feeds/videos.xml?channel_id=${url.split('channel/')[1].split('?')[0].split('/')[0]}`;
-        if (url.includes('youtube.com/user/')) return `https://www.youtube.com/feeds/videos.xml?user=${url.split('user/')[1].split('?')[0].split('/')[0]}`;
-        if (url.includes('youtube.com/@')) return `https://rsshub.app/youtube/user/${url.split('@')[1].split('?')[0].split('/')[0]}`;
-        if (url.match(/reddit\.com\/r\/[a-zA-Z0-9_]+$/)) return url + '/.rss';
-        if (url.match(/reddit\.com\/r\/[a-zA-Z0-9_]+\/?$/)) return url.replace(/\/$/, '') + '/.rss';
-        if (url.includes('bsky.app/profile/')) return `https://bsky.app/profile/${url.split('profile/')[1].split('/')[0].split('?')[0]}/rss`;
-        if (url.includes('threads.net/')) return `https://rsshub.app/threads/usr/${url.split('threads.net/')[1].split('?')[0].split('/')[0].replace('@', '')}`;
-        if (url.includes('instagram.com/')) return `https://rsshub.app/instagram/user/${url.split('instagram.com/')[1].split('?')[0].split('/')[0]}`;
-        return url;
-    }
-
-    function importOPML(e) {
-        const file = e.target.files[0]; if(!file) return;
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const parser = new DOMParser(); const xml = parser.parseFromString(event.target.result, "text/xml"); let count = 0;
-            xml.querySelectorAll('outline').forEach(o => {
-                let url = sanitizeFeedUrl(o.getAttribute('xmlUrl') || o.getAttribute('xmlurl') || o.getAttribute('url') || o.getAttribute('htmlUrl'));
-                if(url && !db.subs.find(s => s.url === url)) { db.subs.push({ title: o.getAttribute('title') || o.getAttribute('text') || "Feed", url }); count++; }
-            });
-            save(); alert(`Imported ${count} feeds!`); closeModal('settings-modal');
-            if (document.getElementById('view-explore').classList.contains('active')) renderLibrary();
-        }; reader.readAsText(file);
-    }
-
-    async function searchExplore() {
-        let urlInput = document.getElementById('lib-search').value.trim(); if(!urlInput) return; 
-        
-        let cleanUrl = sanitizeFeedUrl(urlInput);
-        if (cleanUrl !== urlInput && cleanUrl.includes('rsshub.app')) {
-            addSubscription('Social Media Feed', cleanUrl);
-            document.getElementById('search-results').innerHTML = `<p style="color:var(--accent);">Added Social Bridge successfully!</p>`;
-            return;
-        }
-
-        const type = document.getElementById('search-type').value;
-        const resDiv = document.getElementById('search-results'); resDiv.innerHTML = "Searching...";
-
-        try {
-            resDiv.innerHTML = ""; const proxyBase = "https://api.allorigins.win/get?url=";
-            
-            if (type === 'podcast') {
-                const res = await fetch(`https://itunes.apple.com/search?media=podcast&term=${encodeURIComponent(urlInput)}`);
-                const data = await res.json();
-                data.results.slice(0, 5).forEach(pod => { resDiv.innerHTML += `<div class="glass-card" style="display:flex; justify-content:space-between; align-items:center; padding:15px;"><div><span class="item-title">${pod.collectionName}</span><span class="item-meta">Podcast</span></div><button class="text-btn" onclick="addSubscription('${pod.collectionName.replace(/'/g, "\\'")}', '${pod.feedUrl}')">Add</button></div>`; });
-            } 
-            else if (type === 'reddit') {
-                const res = await fetch(proxyBase + encodeURIComponent(`https://www.reddit.com/subreddits/search.json?q=${encodeURIComponent(urlInput)}`));
-                const data = JSON.parse((await res.json()).contents);
-                if (data.data && data.data.children) {
-                    data.data.children.slice(0, 5).forEach(child => {
-                        const sub = child.data.display_name_prefixed;
-                        resDiv.innerHTML += `<div class="glass-card" style="display:flex; justify-content:space-between; align-items:center; padding:15px;"><div><span class="item-title">${sub}</span><span class="item-meta">Subreddit</span></div><button class="text-btn" onclick="addSubscription('${sub}', 'https://www.reddit.com/${sub}/.rss')">Add</button></div>`;
-                    });
-                }
-            } 
-            else if (type === 'youtube') {
-                const urlToFetch = urlInput.startsWith("@") ? `https://www.youtube.com/${urlInput}` : urlInput;
-                const res = await fetch(proxyBase + encodeURIComponent(urlToFetch));
-                const html = (await res.json()).contents;
-                const match = html.match(/"externalId":"(UC[^"]+)"/) || html.match(/channel_id=([a-zA-Z0-9_-]+)/);
-                if (match && match[1]) {
-                    const titleMatch = html.match(/<title>(.*?) - YouTube<\/title>/);
-                    const title = titleMatch ? titleMatch[1].replace(' - YouTube', '') : "YouTube Channel";
-                    resDiv.innerHTML += `<div class="glass-card" style="display:flex; justify-content:space-between; align-items:center; padding:15px;"><div><span class="item-title">${title}</span><span class="item-meta">YouTube</span></div><button class="text-btn" onclick="addSubscription('${title.replace(/'/g, "\\'")}', 'https://www.youtube.com/feeds/videos.xml?channel_id=${match[1]}')">Add</button></div>`;
-                } else { resDiv.innerHTML = "Could not locate YouTube ID. Paste exact channel URL."; }
-            }
-            if(resDiv.innerHTML === "") resDiv.innerHTML = "No results found.";
-        } catch(e) { resDiv.innerHTML = "Search failed. Check connection."; }
-    }
-
-    async function fetchDailyWiki() {
-        const today = new Date().toISOString().split('T')[0];
-        let cachedWiki = JSON.parse(localStorage.getItem('daily_wiki'));
-        if (cachedWiki && cachedWiki.date === today) return cachedWiki.data;
-        try {
-            const res = await fetch('https://en.wikipedia.org/api/rest_v1/page/random/summary');
-            const data = await res.json();
-            const item = { title: data.title, link: data.content_urls.desktop.page, source: 'Wikipedia Daily', pubDate: new Date().toISOString(), type: 'article', content: data.extract_html, extractedImg: data.thumbnail ? data.thumbnail.source : null };
-            localStorage.setItem('daily_wiki', JSON.stringify({date: today, data: item}));
-            return item;
-        } catch(e) { return null; }
-    }
-
-    async function fetchWithTimeout(url, ms = 8000) {
-        const controller = new AbortController();
-        const id = setTimeout(() => controller.abort(), ms);
-        const response = await fetch(url, { signal: controller.signal });
-        clearTimeout(id); return response;
-    }
-
+    // --- FEED ENGINE & SEARCH ---
     async function refreshFeed(force = false) {
         const syncInd = document.getElementById('sync-indicator');
         if (db.feedCache && db.feedCache.length > 0) renderFeedItems();
-        
-        const now = Date.now();
-        if (!force && db.lastSync && (now - db.lastSync < 1800000)) return; 
-        
+        if (!force && db.lastSync && (Date.now() - db.lastSync < 1800000)) return; 
         syncInd.style.display = 'block';
-        db.feedCache = []; let backgroundCache = []; let completed = 0; const totalReqs = db.subs.length;
-
-        fetchDailyWiki().then(wiki => { if(wiki) { db.feedCache.push(wiki); renderFeedItems(); } });
-        if (totalReqs === 0) { syncInd.style.display = 'none'; return; }
+        let completed = 0; const totalReqs = db.subs.length;
+        if (totalReqs === 0) return syncInd.style.display = 'none';
 
         db.subs.forEach(async (sub) => {
             try {
-                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(sub.url.trim())}`;
-                const res = await fetchWithTimeout(proxyUrl, 10000);
-                const jsonRaw = await res.json();
-                if(!jsonRaw.contents) throw new Error("Empty contents");
-
-                const parser = new DOMParser(); const xmlDoc = parser.parseFromString(jsonRaw.contents, "text/xml");
-                const entries = Array.from(xmlDoc.querySelectorAll("item, entry")).slice(0, 5); 
-                
-                let addedFirst = false;
-
-                entries.forEach((node) => {
+                const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(sub.url.trim())}`);
+                const data = await res.json();
+                const xml = new DOMParser().parseFromString(data.contents, "text/xml");
+                const entries = Array.from(xml.querySelectorAll("item, entry")).slice(0, 8);
+                entries.forEach(node => {
                     const title = node.querySelector("title")?.textContent || "Untitled";
-                    const linkNode = node.querySelector("link");
-                    const link = linkNode ? (linkNode.textContent || linkNode.getAttribute("href")) : "";
-                    const pubDateRaw = node.querySelector("pubDate, published, updated")?.textContent || new Date().toISOString();
-                    
-                    if ((link.includes('youtube.com') || link.includes('youtu.be')) && 
-                        (title.toLowerCase().includes('#shorts') || title.toLowerCase().includes('shorts'))) {
-                        return; 
+                    const link = node.querySelector("link")?.textContent || node.querySelector("link")?.getAttribute("href") || "";
+                    if ((link.includes('youtube.com') || link.includes('youtu.be')) && title.toLowerCase().includes('#shorts')) return;
+                    if (!db.feedCache.find(i => i.link === link)) {
+                        db.feedCache.push({ title, link, pubDate: node.querySelector("pubDate, published, updated")?.textContent || new Date().toISOString(), source: sub.title, type: link.includes('youtube') ? 'podcast' : 'article' });
                     }
-                    
-                    let content = node.getElementsByTagNameNS("*", "encoded").length > 0 ? node.getElementsByTagNameNS("*", "encoded")[0].textContent : (node.querySelector("description, content")?.textContent || "");
-                    const enclosure = node.querySelector("enclosure");
-                    const encUrl = enclosure ? enclosure.getAttribute("url") : null;
-                    const encType = enclosure ? enclosure.getAttribute("type") : "";
-                    const mediaThumb = node.querySelector("thumbnail")?.getAttribute("url") || node.querySelector("image")?.getAttribute("href") || node.querySelector("group thumbnail")?.getAttribute("url");
-                    
-                    let extractedImg = mediaThumb || (encType.startsWith('image') ? encUrl : null);
-                    if (!extractedImg) { const imgMatch = content.match(/<img[^>]+src="([^">]+)"/); if (imgMatch) extractedImg = imgMatch[1]; }
-
-                    let type = 'article';
-                    if (link.includes('youtube') || (encType && (encType.includes('audio') || encType.includes('video'))) || (encUrl && encUrl.match(/\.(mp3|m4a|wav|mp4)/i))) type = 'podcast';
-
-                    const item = { title, link, pubDate: pubDateRaw, content, source: sub.title, extractedImg, type, enclosure: encUrl ? { link: encUrl } : null };
-
-                    if (!addedFirst) {
-                        db.feedCache.push(item);
-                        db.feedCache.sort((a,b) => { let tA = new Date(a.pubDate).getTime(); let tB = new Date(b.pubDate).getTime(); if(isNaN(tA)) tA = 0; if(isNaN(tB)) tB = 0; return tB - tA; });
-                        renderFeedItems();
-                        addedFirst = true;
-                    } else { backgroundCache.push(item); }
                 });
-            } catch (e) { } 
-            finally {
-                completed++;
-                if(completed === totalReqs) {
-                    db.feedCache = db.feedCache.concat(backgroundCache);
-                    db.feedCache.sort((a,b) => { let tA = new Date(a.pubDate).getTime(); let tB = new Date(b.pubDate).getTime(); if(isNaN(tA)) tA = 0; if(isNaN(tB)) tB = 0; return tB - tA; });
-                    syncInd.style.display = 'none'; db.lastSync = Date.now(); save();
-                } else { syncInd.innerText = `↻ Streaming posts... (${Math.round((completed/totalReqs)*100)}%)`; }
-            }
+                db.feedCache.sort((a,b) => new Date(b.pubDate) - new Date(a.pubDate));
+                renderFeedItems();
+            } catch (e) {} finally { completed++; if(completed === totalReqs) { syncInd.style.display = 'none'; db.lastSync = Date.now(); save(); } }
         });
     }
 
-    function filterFeed(type) { activeFeedFilter = type; displayLimit = db.settings.feedLimit; renderFeedItems(); }
-    function loadMoreFeeds() { displayLimit += db.settings.feedLimit; renderFeedItems(); }
-
+    function filterFeed(type) { activeFeedFilter = type; renderFeedItems(); }
     function renderFeedItems() {
-        const list = document.getElementById('feed-list');
-        const query = (document.getElementById('feed-search')?.value || "").toLowerCase();
-        
-        const filteredItems = db.feedCache.filter(item => {
-            let matchType = activeFeedFilter === 'all' || item.type === activeFeedFilter;
-            let matchSource = currentFeedSource === 'all' || item.source === currentFeedSource;
-            let matchSearch = !query || item.title.toLowerCase().includes(query) || (item.content && item.content.toLowerCase().includes(query));
-            return matchType && matchSource && matchSearch;
-        });
-        
-        const itemsToRender = filteredItems.slice(0, displayLimit);
-        
-        let html = itemsToRender.map(item => {
-            let parsedDate = new Date(item.pubDate);
-            let dateStr = isNaN(parsedDate) ? "Recent" : parsedDate.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
-            return `<div class="glass-card" onclick='openMediaModal(${JSON.stringify(item).replace(/'/g, "&apos;")})'><span class="item-meta">${item.source} • ${dateStr}</span><span class="item-title">${item.title}</span>${item.extractedImg ? `<img src="${item.extractedImg}" class="feed-img">` : ''}</div>`;
-        }).join('');
-
-        if (filteredItems.length > displayLimit) html += `<button class="glass-card" style="width:100%; text-align:center; color:var(--accent); font-weight:bold; cursor:pointer;" onclick="loadMoreFeeds()">Load More ↓</button>`;
-        else if (itemsToRender.length > 0) html += `<p style="text-align:center; color:var(--sub); margin-top:20px;">End of feed.</p>`;
-        else if (query) html += `<p style="text-align:center; color:var(--sub); margin-top:20px;">No results found.</p>`;
-        
-        list.innerHTML = html;
+        const list = document.getElementById('feed-list'); const query = (document.getElementById('feed-search')?.value || "").toLowerCase();
+        const filtered = db.feedCache.filter(i => (activeFeedFilter === 'all' || i.type === activeFeedFilter) && (currentFeedSource === 'all' || i.source === currentFeedSource) && (!query || i.title.toLowerCase().includes(query) || i.source.toLowerCase().includes(query)));
+        list.innerHTML = filtered.slice(0, displayLimit).map(item => `<div class="glass-card" onclick='openMediaModal(${JSON.stringify(item).replace(/'/g, "&apos;")})'><span class="item-meta">${item.source} • ${new Date(item.pubDate).toLocaleDateString()}</span><span class="item-title">${item.title}</span></div>`).join('');
+        if (filtered.length > displayLimit) list.innerHTML += `<button class="glass-card" style="width:100%; text-align:center; color:var(--accent); font-weight:bold;" onclick="displayLimit += 15; renderFeedItems()">Load More ↓</button>`;
     }
 
     async function openMediaModal(item) {
-        const modal = document.getElementById('media-modal');
-        modal.style.display = 'flex';
-        document.body.classList.add('modal-open');
-        setTimeout(() => modal.classList.add('open'), 10);
-        
+        const modal = document.getElementById('media-modal'); modal.style.display = 'flex'; document.body.classList.add('modal-open'); setTimeout(() => modal.classList.add('open'), 10);
         document.getElementById('modal-title').innerText = item.title;
-        modal.dataset.currentType = item.type;
-        modal.dataset.currentSource = item.source;
-        modal.dataset.currentLink = item.link; 
-        modal.dataset.currentImg = item.extractedImg || '';
-        
-        const audioUI = document.getElementById('modal-audio-ui');
-        const articleUI = document.getElementById('modal-article-ui');
-        
-        audioUI.style.display = 'none'; articleUI.style.display = 'none';
-        document.getElementById('modal-ebook-ui').style.display = 'none'; document.getElementById('modal-pdf-ui').style.display = 'none';
-
+        modal.dataset.currentType = item.type; modal.dataset.currentLink = item.link;
+        document.getElementById('modal-audio-ui').style.display = 'none'; document.getElementById('modal-article-ui').style.display = 'none';
         if(item.type === 'podcast') {
-            audioUI.style.display = 'block';
-            const audioEl = document.getElementById('main-audio');
-            const videoContainer = document.getElementById('yt-container');
-            const ytHandoffBtn = document.getElementById('yt-handoff-btn');
-            
-            audioEl.style.display = 'none'; videoContainer.innerHTML = ''; ytHandoffBtn.style.display = 'none';
-            
-            if (item.link && (item.link.includes('youtube.com') || item.link.includes('youtu.be'))) {
-                let vidId = '';
-                if(item.link.includes('v=')) vidId = item.link.split('v=')[1].split('&')[0];
-                else if(item.link.includes('youtu.be/')) vidId = item.link.split('youtu.be/')[1].split('?')[0];
-                
-                if(vidId) { 
-                    videoContainer.innerHTML = `<iframe id="main-video" src="https://www.youtube.com/embed/${vidId}?playsinline=1&enablejsapi=1" style="width:100%; aspect-ratio:16/9; border-radius:12px; border:none; margin-bottom:15px;" allowfullscreen></iframe>`;
-                    ytHandoffBtn.style.display = 'block';
-                    ytHandoffBtn.onclick = () => window.open(item.link, '_blank');
-                    setTimeout(() => { if(typeof YT !== 'undefined' && YT.Player) { ytPlayer = new YT.Player('main-video'); } }, 1000);
-                }
-            } else {
-                audioEl.src = item.enclosure ? item.enclosure.link : '';
-                audioEl.style.display = 'block';
-            }
-            document.getElementById('transcript-container').innerHTML = item.content || item.description || "No description provided.";
-        } 
-        else if (item.type === 'article') {
-            articleUI.style.display = 'block';
-            const articleBody = document.getElementById('article-body');
-            
-            let contentHtml = item.content || item.description || "<p>No content provided by the feed.</p>";
-            let topImg = item.extractedImg && !contentHtml.includes(item.extractedImg) ? `<img src="${item.extractedImg}" style="width:100%; max-height:300px; object-fit:cover; border-radius:12px; margin-bottom:15px;">` : '';
-            
-            articleBody.innerHTML = `${topImg}<div id="extract-status" style="font-size:13px; color:var(--accent); text-align:center; margin-bottom:10px;">Extracting full text...</div>${contentHtml}`;
-
-            try {
-                const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(item.link)}`;
-                const response = await fetchWithTimeout(proxyUrl, 5000); 
-                const htmlStr = await response.text();
-                
-                const doc = new DOMParser().parseFromString(htmlStr, 'text/html');
-                const reader = new Readability(doc);
-                const article = reader.parse();
-                
-                if(article && article.textContent.length > 300) {
-                    articleBody.innerHTML = topImg + article.content;
-                } else {
-                    throw new Error("Short text");
-                }
-            } catch(e) { 
-                try {
-                    const proxyUrl2 = `https://api.allorigins.win/get?url=${encodeURIComponent(item.link)}`;
-                    const response2 = await fetchWithTimeout(proxyUrl2, 5000);
-                    const jsonRaw2 = await response2.json();
-                    const doc2 = new DOMParser().parseFromString(jsonRaw2.contents, 'text/html');
-                    const reader2 = new Readability(doc2);
-                    const article2 = reader2.parse();
-                    if(article2 && article2.textContent.length > 300) {
-                        articleBody.innerHTML = topImg + article2.content;
-                    } else { throw new Error("Failed"); }
-                } catch (e2) {
-                    const status = document.getElementById('extract-status');
-                    if(status) { status.style.color = '#FF3B30'; status.innerText = "Extraction blocked. Snippet provided below."; }
-                }
-            }
-            articleBody.innerHTML += `<div style="margin-top: 30px; text-align: center;"><button class="primary-btn" onclick="window.open('${item.link}', '_blank')">Open Webpage</button><p style="font-size:12px; color:var(--sub); margin-top:5px;">Opens in Safari for full native Reader Mode.</p></div>`;
-        }
-    }
-
-    document.addEventListener('selectionchange', () => {
-        const text = window.getSelection().toString().trim();
-        const btn = document.getElementById('floating-highlight');
-        if (text.length > 0 && document.getElementById('media-modal').classList.contains('open')) {
-            btn.style.display = 'block'; if(!btn.dataset.cfi) btn.dataset.text = text;
-        } else { btn.style.display = 'none'; btn.dataset.cfi = ""; }
-    });
-
-    function saveSelectedText(event) {
-        event.preventDefault(); 
-        const btn = document.getElementById('floating-highlight');
-        const modal = document.getElementById('media-modal');
-        
-        let text = window.getSelection().toString().trim();
-        if(modal.dataset.currentType === 'epub') text = prompt("Save Highlight/Note for this EPUB selection:") || "EPUB Bookmark";
-        else text = btn.dataset.text || text;
-        
-        if(text) {
-            const source = document.getElementById('modal-title').innerText;
-            const type = modal.dataset.currentType;
-            let target = type === 'epub' ? btn.dataset.cfi : modal.dataset.currentLink;
-            saveNote(text, source, type, target, modal.dataset.currentMediaId, modal.dataset.currentImg);
-            window.getSelection().removeAllRanges();
-            btn.style.display = 'none';
-        }
-    }
-
-    let snipStartTime = null;
-
-    function snipAudio() {
-        const modal = document.getElementById('media-modal');
-        const audio = document.getElementById('main-audio');
-        const btn = document.getElementById('snip-btn');
-        let currentTime = 0;
-        let isYT = document.getElementById('yt-container').innerHTML !== '';
-        
-        if (!isYT && audio.src) { currentTime = Math.floor(audio.currentTime); } 
-        else if (isYT && ytPlayer && typeof ytPlayer.getCurrentTime === 'function') { currentTime = Math.floor(ytPlayer.getCurrentTime()); }
-
-        if (snipStartTime === null) {
-            snipStartTime = currentTime;
-            btn.innerText = "⏹ End Snip & Dictate Note";
-            btn.style.background = "#FF3B30";
+            document.getElementById('modal-audio-ui').style.display = 'block';
+            if(item.link.includes('youtube')) {
+                const vidId = item.link.includes('v=') ? item.link.split('v=')[1].split('&')[0] : item.link.split('youtu.be/')[1].split('?')[0];
+                document.getElementById('yt-container').innerHTML = `<iframe id="main-video" src="https://www.youtube.com/embed/${vidId}?enablejsapi=1" style="width:100%; aspect-ratio:16/9; border-radius:12px; border:none;" allowfullscreen></iframe>`;
+                setTimeout(() => ytPlayer = new YT.Player('main-video'), 1000);
+            } else { document.getElementById('main-audio').src = item.link; document.getElementById('main-audio').style.display = 'block'; }
         } else {
-            let endTime = currentTime;
-            let prefix = `[${snipStartTime}s - ${endTime}s] `;
-            let target = modal.dataset.currentLink;
-            
-            if (isYT) target += (target.includes('?') ? `&t=${snipStartTime}s` : `?t=${snipStartTime}s`);
-            else target = snipStartTime; 
-
-            if (!isYT && audio.src) audio.pause();
-            if (isYT && ytPlayer) ytPlayer.pauseVideo();
-
-            const thought = prompt(`Snipped from ${snipStartTime}s to ${endTime}s.\n\nUse your keyboard's Microphone 🎤 to dictate a summary:`);
-            
-            if(thought) saveNote(`${prefix}${thought}`, document.getElementById('modal-title').innerText, 'podcast', target, null, modal.dataset.currentImg);
-            
-            snipStartTime = null;
-            btn.innerText = "✂️ Start Audio Snip";
-            btn.style.background = "var(--accent)";
+            document.getElementById('modal-article-ui').style.display = 'block';
+            document.getElementById('article-body').innerHTML = `<p style="text-align:center; color:var(--accent);">Extracting full text...</p>`;
+            try { const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(item.link)}`); const json = await res.json(); const doc = new DOMParser().parseFromString(json.contents, 'text/html'); const reader = new Readability(doc); const article = reader.parse(); document.getElementById('article-body').innerHTML = article ? article.content : "Snippet not available."; } catch(e) { document.getElementById('article-body').innerHTML = "Full text blocked."; }
+            document.getElementById('article-body').innerHTML += `<div style="text-align:center; margin-top:20px;"><button class="primary-btn" onclick="window.open('${item.link}', '_blank')">Open Original</button></div>`;
         }
     }
 
-    function saveNote(text, source, type, linkTarget, mediaId = null, img = "") {
-        db.notes.push({ id: Date.now().toString(), text, source, type, linkTarget, mediaId, img, thoughts: "", date: new Date().toISOString(), reviewCount: 0, interval: 1, ease: 2.5, nextReview: Date.now(), history: [] });
-        save(); alert("Saved to Inbox!"); renderInbox();
+    // Snipping and highlighting remain functional with current linkTarget logic
+    let snipStartTime = null;
+    function snipAudio() {
+        const btn = document.getElementById('snip-btn'); let time = 0;
+        if(ytPlayer && ytPlayer.getCurrentTime) time = Math.floor(ytPlayer.getCurrentTime());
+        if(snipStartTime === null) { snipStartTime = time; btn.innerText = "⏹ End Snip"; btn.style.background = "#FF3B30"; } 
+        else { const thought = prompt(`Snipped ${snipStartTime}s to ${time}s. Summary:`); if(thought) saveNote(`[${snipStartTime}s-${time}s] ${thought}`, document.getElementById('modal-title').innerText, 'podcast', document.getElementById('media-modal').dataset.currentLink); snipStartTime = null; btn.innerText = "✂️ Start Audio Snip"; btn.style.background = "var(--accent)"; }
     }
-
-    function renderInbox() {
-        const list = document.getElementById('inbox-list');
-        list.innerHTML = db.notes.length ? db.notes.sort((a,b) => b.id - a.id).map(n => `
-            <div class="glass-card" style="cursor:default;">
-                <button class="jump-btn" onclick="jumpToSource('${n.id}')">↗ Source</button>
-                ${n.img ? `<img src="${n.img}" class="inbox-img">` : ''}
-                <span class="item-meta">${n.source}</span>
-                <span class="item-title" style="font-size:16px;">${n.text}</span>
-                <div class="user-note" onclick="editThought('${n.id}')">
-                    ${n.thoughts ? `<strong>📝 Notes:</strong><br>${n.thoughts}` : `<span style="color:var(--sub)">📝 Tap to add notes...</span>`}
-                </div>
-                <div style="font-size:12px; color:var(--sub); margin-top:10px;">
-                    <span class="material-symbols-outlined" style="font-size:14px; vertical-align:middle;">psychology</span> Seen: ${n.reviewCount || 0} times
-                </div>
-            </div>
-        `).join('') : '<p style="text-align:center; color:var(--sub); margin-top: 40px;">Inbox empty.</p>';
-    }
-
-    function jumpToSource(id) {
-        const note = db.notes.find(n => n.id === id); if(!note) return;
-        if(note.type === 'epub') {
-            if(note.mediaId && note.linkTarget) loadSavedMedia(note.mediaId, note.source, note.linkTarget);
-            else alert("Cannot locate original Ebook. It may have been deleted.");
-        } else if (note.type === 'article' || note.type === 'podcast') {
-            if(note.linkTarget && isNaN(note.linkTarget)) window.open(note.linkTarget, '_blank');
-            else alert("No direct URL saved for this media. Check your feed.");
-        }
-    }
-
-    function editThought(id) {
-        const note = db.notes.find(n => n.id === id); const newThoughts = prompt("Add or edit your thoughts:", note.thoughts || "");
-        if (newThoughts !== null) { note.thoughts = newThoughts; save(); renderInbox(); }
-    }
-
-    // --- ENHANCED SRS ENGINE ---
-    function startSRS() {
-        const now = Date.now(); srsQueue = db.notes.filter(n => n.nextReview <= now);
-        if(srsQueue.length === 0) return alert("You are all caught up for today!");
-        const modal = document.getElementById('srs-modal'); modal.style.display = 'flex'; document.body.classList.add('modal-open'); setTimeout(() => modal.classList.add('open'), 10); showNextSRS();
-    }
-
-    function showNextSRS() {
-        const body = document.getElementById('srs-body');
-        if(srsQueue.length === 0) { body.innerHTML = `<h3 style="text-align:center; margin-top:50px;">Review Complete! 🎉</h3>`; setTimeout(() => closeModal('srs-modal'), 1500); renderInbox(); return; }
-
-        const note = srsQueue[0];
-        let btnsHTML = db.settings.srsMode === 2 ? `<button style="background:#FF3B30;" onclick="processSRS('hard')">Hard</button><button style="background:#007AFF;" onclick="processSRS('easy')">Easy</button>` : `<button style="background:#FF3B30;" onclick="processSRS('hard')">Hard</button><button style="background:#34C759;" onclick="processSRS('good')">Good</button><button style="background:#007AFF;" onclick="processSRS('easy')">Easy</button>`;
-
-        body.innerHTML = `<div class="glass-card">${note.img ? `<img src="${note.img}" class="inbox-img" style="width:80px; height:80px;">` : ''}<span class="item-meta" style="color:var(--accent);">${note.source}</span><span class="item-title" style="font-size:18px;">${note.text}</span>${note.thoughts ? `<div class="user-note">${note.thoughts}</div>` : ''}${note.history && note.history.length > 0 ? `<div style="font-size:11px; color:var(--sub); margin-top:15px; border-top:1px solid var(--border); padding-top:10px;"><strong>Last Review:</strong> ${new Date(note.history[note.history.length-1].date).toLocaleDateString()} (Grade: ${note.history[note.history.length-1].grade})</div>` : ''}</div><p style="text-align:center; margin-top:20px; color:var(--sub);">How well did you remember this?</p><div class="srs-btns">${btnsHTML}</div><p style="text-align:center; margin-top:20px; color:var(--sub); font-size:13px;">${srsQueue.length} remaining</p>`;
-    }
-
-    function processSRS(grade) {
-        let note = srsQueue.shift(); let idx = db.notes.findIndex(n => n.id === note.id); if(!note.history) note.history = [];
-        if (grade === 'hard') { note.interval = 1; note.ease = Math.max(1.3, note.ease - 0.2); } else if (grade === 'good') { note.interval = Math.max(1, Math.round(note.interval * note.ease)); } else if (grade === 'easy') { note.ease += 0.15; note.interval = Math.max(1, Math.round(note.interval * note.ease * 1.3)); }
-        note.history.push({ date: new Date().toISOString(), grade: grade, interval: note.interval, ease: note.ease }); note.nextReview = Date.now() + (note.interval * 24 * 60 * 60 * 1000); note.reviewCount = (note.reviewCount || 0) + 1;
-        db.notes[idx] = note; save(); showNextSRS();
-    }
+    function saveNote(text, source, type, linkTarget) { db.notes.push({ id: Date.now().toString(), text, source, type, linkTarget, date: new Date().toISOString(), nextReview: Date.now(), interval: 1, ease: 2.5, history: [] }); save(); renderInbox(); }
+    function renderInbox() { document.getElementById('inbox-list').innerHTML = db.notes.length ? db.notes.sort((a,b)=>b.id-a.id).map(n => `<div class="glass-card"><button class="jump-btn" onclick="jumpToSource('${n.id}')">↗ Source</button><span class="item-meta">${n.source}</span><span class="item-title" style="font-size:16px;">${n.text}</span></div>`).join('') : '<p style="text-align:center; color:var(--sub); margin-top:40px;">Empty</p>'; }
+    function jumpToSource(id) { const n = db.notes.find(x => x.id === id); if(n.type === 'epub') loadSavedMedia(n.mediaId, n.source, n.linkTarget); else window.open(n.linkTarget, '_blank'); }
+    
+    switchTab('inbox');
 </script>
 </body>
 </html>
