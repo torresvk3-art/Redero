@@ -76,7 +76,8 @@
             background: var(--surface); border-radius: 12px; padding: 8px 15px; margin-bottom: 20px;
             display: flex; align-items: center; border: 1px solid var(--border);
         }
-        .search-bar select { background: none; border: none; color: var(--accent); font-weight: 600; outline: none; margin-right: 10px; font-size: 15px; }
+        .search-bar select, .dropdown-select { background: none; border: none; color: var(--accent); font-weight: 600; outline: none; font-size: 15px; }
+        .search-bar select { margin-right: 10px; }
         input { background: none; border: none; color: var(--text); width: 100%; outline: none; font-size: 16px; padding: 10px 0; }
         .text-btn { background: none; border: none; color: var(--accent); font-size: 16px; font-weight: 600; cursor: pointer; padding:0;}
 
@@ -132,10 +133,16 @@
 <div class="container">
     <!-- FEED TAB -->
     <div id="view-feed" class="view">
-        <div id="filter-bar" style="margin-bottom:15px; display:flex; gap:15px; overflow-x:auto; padding-bottom:10px;">
+        <div id="filter-bar" style="margin-bottom:15px; display:flex; gap:15px; overflow-x:auto; padding-bottom:10px; align-items: center;">
             <button class="text-btn" onclick="filterFeed('all')">All</button>
-            <button class="text-btn" onclick="filterFeed('podcast')">Podcasts</button>
+            <button class="text-btn" onclick="filterFeed('podcast')">Media</button>
             <button class="text-btn" onclick="filterFeed('article')">Articles</button>
+            
+            <select class="dropdown-select" style="margin-left:auto;" id="feed-limit-select" onchange="updateFeedLimit(this.value)">
+                <option value="10">10 / Page</option>
+                <option value="15" selected>15 / Page</option>
+                <option value="25">25 / Page</option>
+            </select>
         </div>
         <div id="sync-indicator">↻ Syncing latest posts...</div>
         <div id="feed-list"></div>
@@ -183,13 +190,19 @@
         <button class="icon-btn" onclick="closeModal('media-modal')"><span class="material-symbols-outlined">close</span></button>
     </div>
     <div class="modal-content" id="modal-body">
+        
         <div id="modal-audio-ui" style="display:none;">
-            <audio id="main-audio" controls style="width:100%; margin-bottom:15px;"></audio>
+            <!-- Added specific YouTube iFrame player -->
+            <iframe id="main-video" style="width:100%; aspect-ratio:16/9; border-radius:12px; border:none; margin-bottom:15px; display:none;" allowfullscreen></iframe>
+            <audio id="main-audio" controls style="width:100%; margin-bottom:15px; display:none;"></audio>
+            
             <button class="text-btn" style="width:100%; background:var(--accent); color:white; padding:12px; border-radius:12px; margin-bottom:15px;" onclick="snipAudio()">✂️ Snip Moment to Inbox</button>
-            <h4 style="margin-top:20px;">Transcript</h4>
+            <h4 style="margin-top:20px;">Description / Transcript</h4>
             <div id="transcript-container"></div>
         </div>
+
         <div id="modal-article-ui" style="display:none;"><div id="article-body"></div></div>
+        
         <div id="modal-ebook-ui" style="display:none;">
             <div id="epub-viewer"></div>
             <div style="display:flex; justify-content: space-between; padding: 15px 0;">
@@ -197,6 +210,7 @@
                 <button class="text-btn" onclick="rendition.next()">Next →</button>
             </div>
         </div>
+        
         <div id="modal-pdf-ui" style="display:none;"><iframe id="pdf-viewer"></iframe></div>
     </div>
     <button id="floating-highlight" onmousedown="saveSelectedText(event)">📝 Save Highlight</button>
@@ -218,16 +232,44 @@
 </nav>
 
 <script>
-    let db = JSON.parse(localStorage.getItem('recall_v3_db')) || { subs: [], notes: [], feedCache: [] };
+    // --- DATABASE & RECOVERY MIGRATION ---
+    function initDB() {
+        let currentDB = JSON.parse(localStorage.getItem('recall_v3_db'));
+        
+        if (!currentDB || !currentDB.notes) {
+            currentDB = { subs: [], notes: [], feedCache: [] };
+            
+            // Rescue data from older versions of the app
+            const oldKeys = ['things_recall_db', 'omni_db', 'rss_highlights', 'rss_feeds'];
+            oldKeys.forEach(key => {
+                const oldData = JSON.parse(localStorage.getItem(key));
+                if (oldData) {
+                    if (oldData.notes) currentDB.notes.push(...oldData.notes);
+                    if (oldData.subscriptions) currentDB.subs.push(...oldData.subscriptions);
+                    if (oldData.highlights) currentDB.notes.push(...oldData.highlights);
+                }
+            });
+            
+            // Deduplicate recovered notes by ID or text
+            currentDB.notes = currentDB.notes.filter((note, index, self) => 
+                index === self.findIndex((t) => (t.id === note.id || t.text === note.text))
+            );
+            
+            localStorage.setItem('recall_v3_db', JSON.stringify(currentDB));
+        }
+        return currentDB;
+    }
+    
+    let db = initDB();
     let themes = ['light', 'black', 'catppuccin', 'gruvbox', 'solarized'];
     let currentThemeIdx = 0;
     let rendition = null;
     let srsQueue = [];
     
-    // Pagination Variables
     let activeFeedFilter = 'all';
-    const ITEMS_PER_PAGE = 15;
+    let ITEMS_PER_PAGE = parseInt(localStorage.getItem('feed_limit')) || 15;
     let displayLimit = ITEMS_PER_PAGE;
+    document.getElementById('feed-limit-select').value = ITEMS_PER_PAGE;
 
     if (localStorage.getItem('saved_theme')) {
         document.documentElement.className = 'theme-' + localStorage.getItem('saved_theme');
@@ -256,7 +298,7 @@
 
     function save() { localStorage.setItem('recall_v3_db', JSON.stringify(db)); }
 
-    // --- EXPLORE & SEARCH LOGIC ---
+    // --- EXPLORE LOGIC ---
     function renderLibrary() {
         const list = document.getElementById('sub-list');
         list.innerHTML = db.subs.map((s, i) => `
@@ -355,7 +397,14 @@
         reader.readAsText(file);
     }
 
-    // --- STREAMING FEED AGGREGATION & PAGINATION ---
+    // --- FEED LOGIC ---
+    function updateFeedLimit(val) {
+        ITEMS_PER_PAGE = parseInt(val);
+        localStorage.setItem('feed_limit', ITEMS_PER_PAGE);
+        displayLimit = ITEMS_PER_PAGE;
+        renderFeedItems();
+    }
+
     async function fetchRandomWiki() {
         try {
             const res = await fetch('https://en.wikipedia.org/api/rest_v1/page/random/summary');
@@ -370,23 +419,14 @@
 
     async function refreshFeed() {
         const syncInd = document.getElementById('sync-indicator');
-        
-        // 1. Instantly display whatever is cached
-        if (db.feedCache && db.feedCache.length > 0) {
-            renderFeedItems();
-        }
-        
+        if (db.feedCache && db.feedCache.length > 0) renderFeedItems();
         syncInd.style.display = 'block';
         
-        // 2. Start a fresh background batch
         let streamingItems = [];
         let completed = 0;
 
         fetchRandomWiki().then(wiki => {
-            if(wiki) {
-                streamingItems.push(wiki);
-                updateStreamingUI(streamingItems);
-            }
+            if(wiki) { streamingItems.push(wiki); updateStreamingUI(streamingItems); }
         });
 
         db.subs.forEach(async (sub) => {
@@ -397,13 +437,13 @@
                 const parser = new DOMParser();
                 const xmlDoc = parser.parseFromString(data.contents, "text/xml");
                 
-                const entries = Array.from(xmlDoc.querySelectorAll("item, entry")).slice(0, 5);
+                const entries = Array.from(xmlDoc.querySelectorAll("item, entry")).slice(0, 10);
                 
                 entries.forEach(node => {
                     const title = node.querySelector("title")?.textContent || "Untitled";
                     const linkNode = node.querySelector("link");
                     const link = linkNode ? (linkNode.textContent || linkNode.getAttribute("href")) : "";
-                    const pubDate = node.querySelector("pubDate, published, updated")?.textContent || new Date().toISOString();
+                    const pubDateRaw = node.querySelector("pubDate, published, updated")?.textContent || new Date().toISOString();
                     
                     let content = node.getElementsByTagNameNS("*", "encoded").length > 0 ? 
                                   node.getElementsByTagNameNS("*", "encoded")[0].textContent : 
@@ -428,30 +468,34 @@
                     }
 
                     streamingItems.push({
-                        title, link, pubDate, content, source: sub.title,
+                        title, link, pubDate: pubDateRaw, content, source: sub.title,
                         extractedImg, type, enclosure: encUrl ? { link: encUrl } : null
                     });
                 });
             } catch (e) {
-                // Silently fail to not interrupt others
+                // Fail silently
             } finally {
                 completed++;
                 updateStreamingUI(streamingItems);
-                if (completed === db.subs.length) {
-                    syncInd.style.display = 'none';
-                }
+                if (completed === db.subs.length) syncInd.style.display = 'none';
             }
         });
     }
 
     function updateStreamingUI(items) {
-        db.feedCache = items.sort((a,b) => new Date(b.pubDate) - new Date(a.pubDate));
+        db.feedCache = items.sort((a,b) => {
+            let tA = new Date(a.pubDate).getTime();
+            let tB = new Date(b.pubDate).getTime();
+            if(isNaN(tA)) tA = 0;
+            if(isNaN(tB)) tB = 0;
+            return tB - tA;
+        });
         renderFeedItems();
     }
 
     function filterFeed(type) {
         activeFeedFilter = type;
-        displayLimit = ITEMS_PER_PAGE; // Reset pagination on filter change
+        displayLimit = ITEMS_PER_PAGE;
         renderFeedItems();
     }
 
@@ -463,12 +507,11 @@
     function renderFeedItems() {
         const list = document.getElementById('feed-list');
         const filteredItems = activeFeedFilter === 'all' ? db.feedCache : db.feedCache.filter(i => i.type === activeFeedFilter);
-        
-        // Slice based on pagination limit
         const itemsToRender = filteredItems.slice(0, displayLimit);
         
         let html = itemsToRender.map(item => {
-            const dateStr = new Date(item.pubDate).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+            let parsedDate = new Date(item.pubDate);
+            let dateStr = isNaN(parsedDate) ? "Recent" : parsedDate.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
             return `
             <div class="glass-card" onclick='openMediaModal(${JSON.stringify(item).replace(/'/g, "&apos;")})'>
                 <span class="item-meta">${item.source} • ${dateStr}</span>
@@ -477,21 +520,20 @@
             </div>`
         }).join('');
 
-        // Pagination UI
         if (filteredItems.length > displayLimit) {
             html += `<button class="glass-card" style="width:100%; text-align:center; color:var(--accent); font-weight:bold; cursor:pointer;" onclick="loadMoreFeeds()">Load More ↓</button>`;
-        } else if (filteredItems.length > 0 && db.feedCache.length > 0) {
-            html += `<p style='text-align:center; color:var(--sub); margin-top:20px; font-weight:bold;'>End of Feed</p>`;
         }
-
         list.innerHTML = html;
     }
 
-    // --- MODALS ---
+    // --- MODALS & YOUTUBE PLAYER ---
     function closeModal(id) {
         const m = document.getElementById(id);
         m.classList.remove('open');
-        if(id === 'media-modal') document.getElementById('main-audio').pause();
+        if(id === 'media-modal') {
+            document.getElementById('main-audio').pause();
+            document.getElementById('main-video').src = ''; // Stop YT video from playing in background
+        }
         setTimeout(() => { m.style.display = 'none'; }, 300);
     }
 
@@ -503,20 +545,41 @@
         document.getElementById('modal-title').innerText = item.title;
         modal.dataset.currentImg = item.extractedImg || '';
 
-        document.getElementById('modal-audio-ui').style.display = 'none';
-        document.getElementById('modal-article-ui').style.display = 'none';
+        const audioUI = document.getElementById('modal-audio-ui');
+        const audioEl = document.getElementById('main-audio');
+        const videoEl = document.getElementById('main-video');
+        const articleUI = document.getElementById('modal-article-ui');
+        
+        audioUI.style.display = 'none';
+        articleUI.style.display = 'none';
         document.getElementById('modal-ebook-ui').style.display = 'none';
         document.getElementById('modal-pdf-ui').style.display = 'none';
 
         if(item.type === 'podcast') {
-            document.getElementById('modal-audio-ui').style.display = 'block';
-            document.getElementById('main-audio').src = item.enclosure ? item.enclosure.link : '';
+            audioUI.style.display = 'block';
+            audioEl.style.display = 'none';
+            videoEl.style.display = 'none';
+            
+            // Check if YouTube link
+            if (item.link && (item.link.includes('youtube.com') || item.link.includes('youtu.be'))) {
+                let vidId = '';
+                if(item.link.includes('v=')) vidId = item.link.split('v=')[1].split('&')[0];
+                else if(item.link.includes('youtu.be/')) vidId = item.link.split('youtu.be/')[1].split('?')[0];
+                
+                if(vidId) {
+                    videoEl.src = `https://www.youtube.com/embed/${vidId}`;
+                    videoEl.style.display = 'block';
+                }
+            } else {
+                audioEl.src = item.enclosure ? item.enclosure.link : '';
+                audioEl.style.display = 'block';
+            }
+            
             document.getElementById('transcript-container').innerHTML = item.content || item.description || "No description provided.";
         } 
         else if (item.type === 'article') {
-            document.getElementById('modal-article-ui').style.display = 'block';
+            articleUI.style.display = 'block';
             let contentHtml = item.content || item.description || "<p>No content provided by the feed.</p>";
-            
             let topImg = item.extractedImg && !contentHtml.includes(item.extractedImg) ? 
                          `<img src="${item.extractedImg}" style="width:100%; max-height:300px; object-fit:cover; border-radius:12px; margin-bottom:15px;">` : '';
             
@@ -559,6 +622,7 @@
         }
     }
 
+    // --- HIGHLIGHTING & INBOX ---
     document.addEventListener('selectionchange', () => {
         const text = window.getSelection().toString().trim();
         const btn = document.getElementById('floating-highlight');
@@ -610,19 +674,25 @@
     function editThought(id) {
         const note = db.notes.find(n => n.id === id);
         const newThoughts = prompt("Add or edit your thoughts:", note.thoughts || "");
-        if (newThoughts !== null) {
-            note.thoughts = newThoughts; save(); renderInbox();
-        }
+        if (newThoughts !== null) { note.thoughts = newThoughts; save(); renderInbox(); }
     }
 
     function snipAudio() {
         const audio = document.getElementById('main-audio');
-        if(!audio.src) return;
-        const time = Math.floor(audio.currentTime);
-        const thought = prompt("Enter your note for this moment:");
-        if(thought) saveNote(`[${time}s] ${thought}`, document.getElementById('modal-title').innerText, document.getElementById('media-modal').dataset.currentImg);
+        const video = document.getElementById('main-video');
+        let prefix = "";
+        
+        if (audio.style.display === 'block' && audio.src) {
+            prefix = `[${Math.floor(audio.currentTime)}s] `;
+        } else if (video.style.display === 'block') {
+            prefix = `[YouTube Note] `;
+        }
+        
+        const thought = prompt("Enter your note for this media:");
+        if(thought) saveNote(`${prefix}${thought}`, document.getElementById('modal-title').innerText, document.getElementById('media-modal').dataset.currentImg);
     }
 
+    // --- SRS ENGINE ---
     function startSRS() {
         const now = Date.now();
         srsQueue = db.notes.filter(n => n.nextReview <= now);
