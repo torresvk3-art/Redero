@@ -71,19 +71,19 @@
         nav button { background: none; border: none; color: var(--sub); font-size: 11px; font-weight: 500; display:flex; flex-direction:column; align-items:center; gap:4px; }
         nav button.active { color: var(--accent); }
 
-        /* --- EXPLORE UI --- */
+        /* --- EXPLORE & INPUT UI --- */
         .search-bar {
             background: var(--surface); border-radius: 12px; padding: 8px 15px; margin-bottom: 20px;
             display: flex; align-items: center; border: 1px solid var(--border);
         }
-        .search-bar select, .dropdown-select { background: none; border: none; color: var(--accent); font-weight: 600; outline: none; font-size: 15px; }
-        .search-bar select { margin-right: 10px; }
-        input { background: none; border: none; color: var(--text); width: 100%; outline: none; font-size: 16px; padding: 10px 0; }
+        .search-bar select { background: none; border: none; color: var(--accent); font-weight: 600; outline: none; margin-right: 10px; font-size: 15px; }
+        input, select { background: none; border: none; color: var(--text); outline: none; font-size: 16px; }
+        .search-bar input { width: 100%; padding: 10px 0; }
         .text-btn { background: none; border: none; color: var(--accent); font-size: 16px; font-weight: 600; cursor: pointer; padding:0;}
 
         .view { display: none; } .view.active { display: block; }
 
-        /* --- MODALS (Reader & SRS) --- */
+        /* --- MODALS --- */
         .fullscreen-modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100dvh;
             background: var(--bg); z-index: 1000; display: none; flex-direction: column;
@@ -99,12 +99,11 @@
         
         #epub-viewer { width: 100%; height: 70vh; background: var(--surface); border-radius: 12px; margin: 10px 0; overflow: hidden; }
         #article-body, #transcript-container { font-size: 18px; line-height: 1.6; color: var(--text); padding: 15px; background: var(--surface); border-radius: 16px; border: 1px solid var(--border); overflow-wrap: break-word;}
-        
         #article-body img, #article-body figure, #article-body iframe { max-width: 100%; height: auto; border-radius: 10px; margin: 15px 0; display: block; }
         #pdf-viewer { width: 100%; height: 80vh; border: none; border-radius: 12px; }
 
         .srs-btns { display: flex; gap: 10px; margin-top: 20px; }
-        .srs-btns button { flex: 1; padding: 15px; border-radius: 12px; border: none; font-weight: bold; font-size: 16px; color: white; }
+        .srs-btns button { flex: 1; padding: 15px; border-radius: 12px; border: none; font-weight: bold; font-size: 16px; color: white; cursor: pointer; }
 
         #floating-highlight {
             display: none; position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
@@ -118,6 +117,10 @@
         }
         
         #sync-indicator { text-align:center; color:var(--accent); font-weight: bold; font-size:13px; padding-bottom:10px; display:none; }
+        
+        /* Settings Form Styles */
+        .setting-row { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid var(--border); }
+        .setting-row select { background: var(--surface); border: 1px solid var(--border); padding: 8px 12px; border-radius: 8px; color: var(--text); }
     </style>
 </head>
 <body>
@@ -125,8 +128,8 @@
 <header>
     <h1 id="title">Inbox</h1>
     <div class="header-btns">
-        <button class="icon-btn" onclick="cycleTheme()"><span class="material-symbols-outlined">dark_mode</span></button>
         <button class="icon-btn" onclick="startSRS()"><span class="material-symbols-outlined">psychology</span></button>
+        <button class="icon-btn" onclick="openSettings()"><span class="material-symbols-outlined">settings</span></button>
     </div>
 </header>
 
@@ -137,17 +140,10 @@
             <button class="text-btn" onclick="filterFeed('all')">All</button>
             <button class="text-btn" onclick="filterFeed('podcast')">Media</button>
             <button class="text-btn" onclick="filterFeed('article')">Articles</button>
-            
-            <select class="dropdown-select" style="margin-left:auto; margin-right:10px;" id="feed-limit-select" onchange="updateFeedLimit(this.value)">
-                <option value="10">10 / Page</option>
-                <option value="15" selected>15 / Page</option>
-                <option value="25">25 / Page</option>
-            </select>
-            
             <!-- Manual Sync Button -->
-            <button class="icon-btn" onclick="refreshFeed(true)"><span class="material-symbols-outlined">sync</span></button>
+            <button class="icon-btn" style="margin-left:auto;" onclick="refreshFeed(true)"><span class="material-symbols-outlined">sync</span></button>
         </div>
-        <div id="sync-indicator">↻ Syncing latest posts...</div>
+        <div id="sync-indicator">↻ Streaming posts...</div>
         <div id="feed-list"></div>
     </div>
 
@@ -186,6 +182,45 @@
     </div>
 </div>
 
+<!-- SETTINGS OVERLAY -->
+<div id="settings-modal" class="fullscreen-modal">
+    <div class="modal-header">
+        <h3 style="margin:0; font-size: 18px;">Settings</h3>
+        <button class="icon-btn" onclick="closeModal('settings-modal')"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <div class="modal-content">
+        <div class="glass-card" style="padding: 10px 20px;">
+            <div class="setting-row">
+                <strong>Theme</strong>
+                <select id="setting-theme" onchange="applySettings()">
+                    <option value="light">Apple Light</option>
+                    <option value="black">AMOLED Black</option>
+                    <option value="catppuccin">Catppuccin Mocha</option>
+                    <option value="gruvbox">Gruvbox Dark</option>
+                    <option value="solarized">Solarized Dark</option>
+                </select>
+            </div>
+            <div class="setting-row">
+                <strong>Posts per Page</strong>
+                <select id="setting-limit" onchange="applySettings()">
+                    <option value="10">10 Items</option>
+                    <option value="15">15 Items</option>
+                    <option value="25">25 Items</option>
+                    <option value="50">50 Items</option>
+                </select>
+            </div>
+            <div class="setting-row" style="border-bottom:none;">
+                <strong>Review Buttons</strong>
+                <select id="setting-srs" onchange="applySettings()">
+                    <option value="3">3 (Hard, Good, Easy)</option>
+                    <option value="2">2 (Hard, Easy)</option>
+                </select>
+            </div>
+        </div>
+        <p style="color:var(--sub); font-size:13px; text-align:center;">Recall Data is saved locally to this device.</p>
+    </div>
+</div>
+
 <!-- MEDIA READER OVERLAY -->
 <div id="media-modal" class="fullscreen-modal" data-current-img="">
     <div class="modal-header">
@@ -197,7 +232,6 @@
         <div id="modal-audio-ui" style="display:none;">
             <iframe id="main-video" style="width:100%; aspect-ratio:16/9; border-radius:12px; border:none; margin-bottom:15px; display:none;" allowfullscreen></iframe>
             <audio id="main-audio" controls style="width:100%; margin-bottom:15px; display:none;"></audio>
-            
             <button class="text-btn" style="width:100%; background:var(--accent); color:white; padding:12px; border-radius:12px; margin-bottom:15px;" onclick="snipAudio()">✂️ Snip Moment to Inbox</button>
             <h4 style="margin-top:20px;">Description / Transcript</h4>
             <div id="transcript-container"></div>
@@ -238,38 +272,28 @@
     function initDB() {
         let currentDB = JSON.parse(localStorage.getItem('recall_v3_db'));
         if (!currentDB || !currentDB.notes) {
-            currentDB = { subs: [], notes: [], feedCache: [], lastSync: 0 };
-            const oldKeys = ['things_recall_db', 'omni_db', 'rss_highlights', 'rss_feeds'];
-            oldKeys.forEach(key => {
-                const oldData = JSON.parse(localStorage.getItem(key));
-                if (oldData) {
-                    if (oldData.notes) currentDB.notes.push(...oldData.notes);
-                    if (oldData.subscriptions) currentDB.subs.push(...oldData.subscriptions);
-                    if (oldData.highlights) currentDB.notes.push(...oldData.highlights);
-                }
-            });
-            currentDB.notes = currentDB.notes.filter((note, index, self) => index === self.findIndex((t) => (t.id === note.id || t.text === note.text)));
-            localStorage.setItem('recall_v3_db', JSON.stringify(currentDB));
+            currentDB = { subs: [], notes: [], feedCache: [], lastSync: 0, settings: { theme: 'black', feedLimit: 15, srsMode: 3 } };
         }
+        if(!currentDB.settings) currentDB.settings = { theme: 'black', feedLimit: 15, srsMode: 3 };
         return currentDB;
     }
     
     let db = initDB();
-    let themes = ['light', 'black', 'catppuccin', 'gruvbox', 'solarized'];
-    let currentThemeIdx = 0;
     let rendition = null;
     let srsQueue = [];
     
     let activeFeedFilter = 'all';
-    let ITEMS_PER_PAGE = parseInt(localStorage.getItem('feed_limit')) || 15;
-    let displayLimit = ITEMS_PER_PAGE;
-    document.getElementById('feed-limit-select').value = ITEMS_PER_PAGE;
+    let displayLimit = parseInt(db.settings.feedLimit) || 15;
 
-    if (localStorage.getItem('saved_theme')) {
-        document.documentElement.className = 'theme-' + localStorage.getItem('saved_theme');
-        currentThemeIdx = themes.indexOf(localStorage.getItem('saved_theme'));
-    }
+    // Apply Settings on Load
+    document.documentElement.className = 'theme-' + db.settings.theme;
+    document.getElementById('setting-theme').value = db.settings.theme;
+    document.getElementById('setting-limit').value = db.settings.feedLimit;
+    document.getElementById('setting-srs').value = db.settings.srsMode;
 
+    function save() { localStorage.setItem('recall_v3_db', JSON.stringify(db)); }
+
+    // --- NAVIGATION & SETTINGS ---
     function switchTab(tab) {
         document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
         document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
@@ -284,21 +308,41 @@
         if(tab === 'explore') renderLibrary();
     }
 
-    function cycleTheme() {
-        currentThemeIdx = (currentThemeIdx + 1) % themes.length;
-        document.documentElement.className = 'theme-' + themes[currentThemeIdx];
-        localStorage.setItem('saved_theme', themes[currentThemeIdx]);
+    function openSettings() {
+        const modal = document.getElementById('settings-modal');
+        modal.style.display = 'flex';
+        setTimeout(() => modal.classList.add('open'), 10);
     }
 
-    function save() { localStorage.setItem('recall_v3_db', JSON.stringify(db)); }
+    function applySettings() {
+        db.settings.theme = document.getElementById('setting-theme').value;
+        db.settings.feedLimit = parseInt(document.getElementById('setting-limit').value);
+        db.settings.srsMode = parseInt(document.getElementById('setting-srs').value);
+        
+        document.documentElement.className = 'theme-' + db.settings.theme;
+        displayLimit = db.settings.feedLimit;
+        save();
+        
+        if (document.getElementById('view-feed').classList.contains('active')) renderFeedItems();
+    }
+
+    function closeModal(id) {
+        const m = document.getElementById(id);
+        m.classList.remove('open');
+        if(id === 'media-modal') {
+            document.getElementById('main-audio').pause();
+            document.getElementById('main-video').src = '';
+        }
+        setTimeout(() => { m.style.display = 'none'; }, 300);
+    }
 
     // --- EXPLORE & SUBSCRIPTIONS ---
     function renderLibrary() {
         const list = document.getElementById('sub-list');
         list.innerHTML = db.subs.map((s, i) => `
             <div class="glass-card" style="display:flex; justify-content:space-between; align-items:center; padding: 12px 16px;">
-                <span style="font-weight: 600;">${s.title}</span>
-                <button class="text-btn" style="color: #FF3B30;" onclick="removeSub(${i})">Delete</button>
+                <span style="font-weight: 600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${s.title}</span>
+                <button class="text-btn" style="color: #FF3B30; margin-left:10px;" onclick="removeSub(${i})">Del</button>
             </div>
         `).join('');
     }
@@ -312,17 +356,10 @@
         }
     }
 
-    // Smart OPML URL Sanitizer
     function sanitizeFeedUrl(url) {
         if (!url) return null;
-        if (url.includes('youtube.com/channel/')) {
-            const id = url.split('channel/')[1].split('?')[0].split('/')[0];
-            return `https://www.youtube.com/feeds/videos.xml?channel_id=${id}`;
-        }
-        if (url.includes('youtube.com/user/')) {
-            const user = url.split('user/')[1].split('?')[0].split('/')[0];
-            return `https://www.youtube.com/feeds/videos.xml?user=${user}`;
-        }
+        if (url.includes('youtube.com/channel/')) return `https://www.youtube.com/feeds/videos.xml?channel_id=${url.split('channel/')[1].split('?')[0].split('/')[0]}`;
+        if (url.includes('youtube.com/user/')) return `https://www.youtube.com/feeds/videos.xml?user=${url.split('user/')[1].split('?')[0].split('/')[0]}`;
         if (url.match(/reddit\.com\/r\/[a-zA-Z0-9_]+$/)) return url + '/.rss';
         if (url.match(/reddit\.com\/r\/[a-zA-Z0-9_]+\/?$/)) return url.replace(/\/$/, '') + '/.rss';
         return url;
@@ -337,14 +374,13 @@
             const xml = parser.parseFromString(event.target.result, "text/xml");
             let count = 0;
             xml.querySelectorAll('outline').forEach(o => {
-                let url = o.getAttribute('xmlUrl') || o.getAttribute('xmlurl') || o.getAttribute('url') || o.getAttribute('htmlUrl');
-                url = sanitizeFeedUrl(url);
+                let url = sanitizeFeedUrl(o.getAttribute('xmlUrl') || o.getAttribute('xmlurl') || o.getAttribute('url') || o.getAttribute('htmlUrl'));
                 if(url && !db.subs.find(s => s.url === url)) {
                     db.subs.push({ title: o.getAttribute('title') || o.getAttribute('text') || "Feed", url });
                     count++;
                 }
             });
-            save(); alert(`Successfully imported ${count} feeds!`); renderLibrary(); refreshFeed(true);
+            save(); alert(`Imported ${count} feeds!`); renderLibrary(); refreshFeed(true);
         };
         reader.readAsText(file);
     }
@@ -402,30 +438,17 @@
                             <div><span class="item-title">${title}</span><span class="item-meta">YouTube</span></div>
                             <button class="text-btn" onclick="addSubscription('${title.replace(/'/g, "\\'")}', 'https://www.youtube.com/feeds/videos.xml?channel_id=${match[1]}')">Add</button>
                         </div>`;
-                } else {
-                    resDiv.innerHTML = "Could not locate YouTube ID. Paste exact channel URL.";
-                }
+                } else { resDiv.innerHTML = "Could not locate YouTube ID. Paste exact channel URL."; }
             }
             if(resDiv.innerHTML === "") resDiv.innerHTML = "No results found.";
         } catch(e) { resDiv.innerHTML = "Search failed. Check connection."; }
     }
 
-    // --- FEED LOGIC (CACHED & BATCHED) ---
-    function updateFeedLimit(val) {
-        ITEMS_PER_PAGE = parseInt(val);
-        localStorage.setItem('feed_limit', ITEMS_PER_PAGE);
-        displayLimit = ITEMS_PER_PAGE;
-        renderFeedItems();
-    }
-
+    // --- STREAMING PROGRESSIVE FEED ---
     async function fetchDailyWiki() {
         const today = new Date().toISOString().split('T')[0];
         let cachedWiki = JSON.parse(localStorage.getItem('daily_wiki'));
-        
-        if (cachedWiki && cachedWiki.date === today) {
-            return cachedWiki.data;
-        }
-        
+        if (cachedWiki && cachedWiki.date === today) return cachedWiki.data;
         try {
             const res = await fetch('https://en.wikipedia.org/api/rest_v1/page/random/summary');
             const data = await res.json();
@@ -443,107 +466,104 @@
         const syncInd = document.getElementById('sync-indicator');
         
         // 1. Render Cache Instantly
-        if (db.feedCache && db.feedCache.length > 0) {
-            renderFeedItems();
-        }
+        if (db.feedCache && db.feedCache.length > 0) renderFeedItems();
         
-        // 2. Prevent spam syncing. Only sync if forced or if older than 30 mins
+        // 2. Cooldown check (don't sync if less than 30 mins, unless forced)
         const now = Date.now();
-        if (!force && db.lastSync && (now - db.lastSync < 1800000)) {
-            return; 
-        }
+        if (!force && db.lastSync && (now - db.lastSync < 1800000)) return; 
         
         syncInd.style.display = 'block';
         
-        let newItems = [];
-        const wiki = await fetchDailyWiki();
-        if(wiki) newItems.push(wiki);
-
-        // Fetch in safe batches of 5 to prevent proxy bans
-        const BATCH_SIZE = 5;
+        // 3. Progressive Streaming Engine
+        // Instead of building a massive array and rendering once, we inject items into db.feedCache and render immediately
+        db.feedCache = []; // Clear cache to stream fresh
+        
         let completed = 0;
-        
-        for (let i = 0; i < db.subs.length; i += BATCH_SIZE) {
-            const batch = db.subs.slice(i, i + BATCH_SIZE);
-            const promises = batch.map(async (sub) => {
-                try {
-                    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(sub.url.trim())}`;
-                    const res = await fetch(proxyUrl);
-                    const data = await res.json();
-                    const parser = new DOMParser();
-                    const xmlDoc = parser.parseFromString(data.contents, "text/xml");
-                    
-                    const entries = Array.from(xmlDoc.querySelectorAll("item, entry")).slice(0, 8);
-                    
-                    return entries.map(node => {
-                        const title = node.querySelector("title")?.textContent || "Untitled";
-                        const linkNode = node.querySelector("link");
-                        const link = linkNode ? (linkNode.textContent || linkNode.getAttribute("href")) : "";
-                        const pubDateRaw = node.querySelector("pubDate, published, updated")?.textContent || new Date().toISOString();
-                        
-                        let content = node.getElementsByTagNameNS("*", "encoded").length > 0 ? 
-                                      node.getElementsByTagNameNS("*", "encoded")[0].textContent : 
-                                      (node.querySelector("description, content")?.textContent || "");
+        const totalReqs = db.subs.length;
 
-                        const enclosure = node.querySelector("enclosure");
-                        const encUrl = enclosure ? enclosure.getAttribute("url") : null;
-                        const encType = enclosure ? enclosure.getAttribute("type") : "";
-
-                        const mediaThumb = node.querySelector("thumbnail")?.getAttribute("url") || node.querySelector("image")?.getAttribute("href");
-                        let extractedImg = mediaThumb || (encType.startsWith('image') ? encUrl : null);
-                        if (!extractedImg) {
-                            const imgMatch = content.match(/<img[^>]+src="([^">]+)"/);
-                            if (imgMatch) extractedImg = imgMatch[1];
-                        }
-
-                        let type = 'article';
-                        if (link.includes('youtube') || 
-                            (encType && (encType.includes('audio') || encType.includes('video'))) || 
-                            (encUrl && encUrl.match(/\.(mp3|m4a|wav|mp4)/i))) {
-                            type = 'podcast';
-                        }
-
-                        return {
-                            title, link, pubDate: pubDateRaw, content, source: sub.title,
-                            extractedImg, type, enclosure: encUrl ? { link: encUrl } : null
-                        };
-                    });
-                } catch (e) {
-                    return []; // Fail silently for this feed
-                }
-            });
-
-            const batchResults = await Promise.all(promises);
-            newItems.push(...batchResults.flat());
-            
-            completed += batch.length;
-            syncInd.innerText = `↻ Syncing latest posts... (${Math.round((completed/db.subs.length)*100)}%)`;
-        }
-
-        // Sort properly
-        db.feedCache = newItems.sort((a,b) => {
-            let tA = new Date(a.pubDate).getTime();
-            let tB = new Date(b.pubDate).getTime();
-            if(isNaN(tA)) tA = 0; if(isNaN(tB)) tB = 0;
-            return tB - tA;
+        // Stream Wiki immediately
+        fetchDailyWiki().then(wiki => {
+            if(wiki) {
+                db.feedCache.push(wiki);
+                renderFeedItems();
+            }
         });
-        
-        db.lastSync = Date.now();
-        save();
-        
-        syncInd.style.display = 'none';
-        displayLimit = ITEMS_PER_PAGE;
-        renderFeedItems();
+
+        // Fire all requests asynchronously, process them exactly as they arrive
+        db.subs.forEach(async (sub) => {
+            try {
+                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(sub.url.trim())}`;
+                const res = await fetch(proxyUrl);
+                const data = await res.json();
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(data.contents, "text/xml");
+                
+                const entries = Array.from(xmlDoc.querySelectorAll("item, entry")).slice(0, 5); // Take top 5 from each feed to prioritize recent
+                
+                entries.forEach(node => {
+                    const title = node.querySelector("title")?.textContent || "Untitled";
+                    const linkNode = node.querySelector("link");
+                    const link = linkNode ? (linkNode.textContent || linkNode.getAttribute("href")) : "";
+                    const pubDateRaw = node.querySelector("pubDate, published, updated")?.textContent || new Date().toISOString();
+                    
+                    let content = node.getElementsByTagNameNS("*", "encoded").length > 0 ? 
+                                  node.getElementsByTagNameNS("*", "encoded")[0].textContent : 
+                                  (node.querySelector("description, content")?.textContent || "");
+
+                    const enclosure = node.querySelector("enclosure");
+                    const encUrl = enclosure ? enclosure.getAttribute("url") : null;
+                    const encType = enclosure ? enclosure.getAttribute("type") : "";
+
+                    const mediaThumb = node.querySelector("thumbnail")?.getAttribute("url") || node.querySelector("image")?.getAttribute("href");
+                    let extractedImg = mediaThumb || (encType.startsWith('image') ? encUrl : null);
+                    if (!extractedImg) {
+                        const imgMatch = content.match(/<img[^>]+src="([^">]+)"/);
+                        if (imgMatch) extractedImg = imgMatch[1];
+                    }
+
+                    let type = 'article';
+                    if (link.includes('youtube') || (encType && (encType.includes('audio') || encType.includes('video'))) || (encUrl && encUrl.match(/\.(mp3|m4a|wav|mp4)/i))) {
+                        type = 'podcast';
+                    }
+
+                    // Push directly to main cache
+                    db.feedCache.push({
+                        title, link, pubDate: pubDateRaw, content, source: sub.title,
+                        extractedImg, type, enclosure: encUrl ? { link: encUrl } : null
+                    });
+                });
+                
+                // Sort the entire cache and render the UI instantly after this specific feed finishes
+                db.feedCache.sort((a,b) => {
+                    let tA = new Date(a.pubDate).getTime(); let tB = new Date(b.pubDate).getTime();
+                    if(isNaN(tA)) tA = 0; if(isNaN(tB)) tB = 0;
+                    return tB - tA;
+                });
+                renderFeedItems();
+
+            } catch (e) {
+                // Fail silently for broken feeds
+            } finally {
+                completed++;
+                if(completed === totalReqs) {
+                    syncInd.style.display = 'none';
+                    db.lastSync = Date.now();
+                    save();
+                } else {
+                    syncInd.innerText = `↻ Streaming posts... (${Math.round((completed/totalReqs)*100)}%)`;
+                }
+            }
+        });
     }
 
     function filterFeed(type) {
         activeFeedFilter = type;
-        displayLimit = ITEMS_PER_PAGE;
+        displayLimit = db.settings.feedLimit;
         renderFeedItems();
     }
 
     function loadMoreFeeds() {
-        displayLimit += ITEMS_PER_PAGE;
+        displayLimit += db.settings.feedLimit;
         renderFeedItems();
     }
 
@@ -569,17 +589,7 @@
         list.innerHTML = html;
     }
 
-    // --- MODALS & READER ---
-    function closeModal(id) {
-        const m = document.getElementById(id);
-        m.classList.remove('open');
-        if(id === 'media-modal') {
-            document.getElementById('main-audio').pause();
-            document.getElementById('main-video').src = '';
-        }
-        setTimeout(() => { m.style.display = 'none'; }, 300);
-    }
-
+    // --- READER MODAL ---
     function openMediaModal(item) {
         const modal = document.getElementById('media-modal');
         modal.style.display = 'flex';
@@ -616,7 +626,6 @@
                 audioEl.src = item.enclosure ? item.enclosure.link : '';
                 audioEl.style.display = 'block';
             }
-            
             document.getElementById('transcript-container').innerHTML = item.content || item.description || "No description provided.";
         } 
         else if (item.type === 'article') {
@@ -691,7 +700,7 @@
         db.notes.push({ 
             id: Date.now(), text, source, img, thoughts: "", 
             date: new Date().toISOString(), reviewCount: 0, 
-            interval: 1, ease: 2.5, nextReview: Date.now() 
+            interval: 1, ease: 2.5, nextReview: Date.now(), history: [] 
         });
         save(); alert("Saved to Inbox!"); renderInbox();
     }
@@ -734,7 +743,7 @@
         if(thought) saveNote(`${prefix}${thought}`, document.getElementById('modal-title').innerText, document.getElementById('media-modal').dataset.currentImg);
     }
 
-    // --- SRS ENGINE ---
+    // --- ENHANCED SM-2 ENGINE ---
     function startSRS() {
         const now = Date.now();
         srsQueue = db.notes.filter(n => n.nextReview <= now);
@@ -757,18 +766,38 @@
         }
 
         const note = srsQueue[0];
+        const mode = db.settings.srsMode;
+        
+        let btnsHTML = '';
+        if (mode === 2) {
+            btnsHTML = `
+                <button style="background:#FF3B30; cursor:pointer;" onclick="processSRS('hard')">Hard</button>
+                <button style="background:#007AFF; cursor:pointer;" onclick="processSRS('easy')">Easy</button>
+            `;
+        } else {
+            btnsHTML = `
+                <button style="background:#FF3B30; cursor:pointer;" onclick="processSRS('hard')">Hard</button>
+                <button style="background:#34C759; cursor:pointer;" onclick="processSRS('good')">Good</button>
+                <button style="background:#007AFF; cursor:pointer;" onclick="processSRS('easy')">Easy</button>
+            `;
+        }
+
         body.innerHTML = `
             <div class="glass-card">
                 ${note.img ? `<img src="${note.img}" class="inbox-img" style="width:80px; height:80px;">` : ''}
                 <span class="item-meta" style="color:var(--accent);">${note.source}</span>
                 <span class="item-title" style="font-size:18px;">${note.text}</span>
                 ${note.thoughts ? `<div class="user-note">${note.thoughts}</div>` : ''}
+                
+                ${note.history && note.history.length > 0 ? 
+                    `<div style="font-size:11px; color:var(--sub); margin-top:15px; border-top:1px solid var(--border); padding-top:10px;">
+                        <strong>Last Review:</strong> ${new Date(note.history[note.history.length-1].date).toLocaleDateString()} (Grade: ${note.history[note.history.length-1].grade})
+                    </div>` : ''
+                }
             </div>
             <p style="text-align:center; margin-top:20px; color:var(--sub);">How well did you remember this?</p>
             <div class="srs-btns">
-                <button style="background:#FF3B30; cursor:pointer;" onclick="processSRS('hard')">Hard</button>
-                <button style="background:#34C759; cursor:pointer;" onclick="processSRS('good')">Good</button>
-                <button style="background:#007AFF; cursor:pointer;" onclick="processSRS('easy')">Easy</button>
+                ${btnsHTML}
             </div>
             <p style="text-align:center; margin-top:20px; color:var(--sub); font-size:13px;">${srsQueue.length} remaining</p>
         `;
@@ -778,10 +807,19 @@
         let note = srsQueue.shift();
         let idx = db.notes.findIndex(n => n.id === note.id);
         
-        if (grade === 'hard') { note.interval = 1; note.ease = Math.max(1.3, note.ease - 0.2); }
-        else if (grade === 'good') { note.interval = Math.max(1, Math.round(note.interval * note.ease)); }
-        else if (grade === 'easy') { note.ease += 0.15; note.interval = Math.max(1, Math.round(note.interval * note.ease * 1.3)); }
+        if(!note.history) note.history = [];
         
+        if (grade === 'hard') { 
+            note.interval = 1; 
+            note.ease = Math.max(1.3, note.ease - 0.2); 
+        } else if (grade === 'good') { 
+            note.interval = Math.max(1, Math.round(note.interval * note.ease)); 
+        } else if (grade === 'easy') { 
+            note.ease += 0.15; 
+            note.interval = Math.max(1, Math.round(note.interval * note.ease * 1.3)); 
+        }
+        
+        note.history.push({ date: new Date().toISOString(), grade: grade, interval: note.interval, ease: note.ease });
         note.nextReview = Date.now() + (note.interval * 24 * 60 * 60 * 1000);
         note.reviewCount = (note.reviewCount || 0) + 1;
         
