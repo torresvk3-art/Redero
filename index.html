@@ -56,13 +56,14 @@
         .fullscreen-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 1000; display: none; flex-direction: column; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); }
         .fullscreen-modal.open { transform: translateY(0); }
         
-        /* Drag-to-close handler */
         .modal-header { padding: max(20px, env(safe-area-inset-top)) 20px 15px 20px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; position: relative; }
         .modal-drag-handle { width: 40px; height: 5px; background: var(--border); border-radius: 3px; position: absolute; top: 8px; left: 50%; transform: translateX(-50%); }
 
         .modal-content { flex: 1; overflow-y: auto; padding: 20px; padding-bottom: 60px; -webkit-user-select: text; user-select: text; -webkit-overflow-scrolling: touch; }
         
-        /* Fixed EPUB UI */
+        /* Hyperlink Theming */
+        .modal-content a, .glass-card a { color: var(--accent); text-decoration: underline; font-weight: 500; }
+        
         .epub-container-wrapper { height: 65vh; min-height: 400px; width: 100%; border-radius: 12px; overflow: hidden; margin-top: 10px; position: relative;}
         #epub-viewer { width: 100%; height: 100%; background: var(--surface); margin: 0; overflow: hidden; border: none; transition: filter 0.2s ease; position: absolute; top:0; left:0;}
         
@@ -112,7 +113,7 @@
         </div>
     </header>
 
-    <div class="main-scroll-area">
+    <div class="main-scroll-area" id="main-scroller">
         <div class="content-padding">
             <!-- FEED TAB -->
             <div id="view-feed" class="view">
@@ -212,6 +213,8 @@
         </div>
 
         <h4 style="margin-top: 30px; margin-bottom: 10px; padding-left: 10px;">Calendar Reminders</h4>
+        
+        <!-- Feed Reminder -->
         <div class="glass-card" style="padding: 15px 20px;">
             <strong style="display:block; margin-bottom:10px; color:var(--accent);">Feed Sync Schedule</strong>
             <div class="setting-row" style="border-bottom:none; flex-direction:column; align-items:flex-start; padding:0;">
@@ -247,6 +250,7 @@
             </div>
         </div>
 
+        <!-- Recall Reminder -->
         <div class="glass-card" style="padding: 15px 20px;">
             <strong style="display:block; margin-bottom:10px; color:var(--accent);">Recall (SRS) Schedule</strong>
             <div class="setting-row" style="border-bottom:none; flex-direction:column; align-items:flex-start; padding:0;">
@@ -281,7 +285,6 @@
                 <button class="text-btn" style="width:100%; margin-top:15px; border: 1px solid var(--border); padding: 8px; border-radius: 8px;" onclick="generateCalendarInvite('recall')">Export Recall Alarm</button>
             </div>
         </div>
-
     </div>
 </div>
 
@@ -296,8 +299,13 @@
     <div class="modal-content" id="modal-body" style="padding: 10px;">
         <div id="modal-audio-ui" style="display:none;">
             <div id="yt-container"></div>
+            <button id="yt-handoff-btn" class="glass-card" style="display:none; width:100%; text-align:center; color:var(--accent); font-weight:bold; cursor:pointer; margin-bottom:15px;">↗ Open in YouTube App</button>
+            
             <audio id="main-audio" controls style="width:100%; margin-bottom:15px; display:none;"></audio>
-            <button class="text-btn" style="width:100%; background:var(--accent); color:white; padding:12px; border-radius:12px; margin-bottom:15px;" onclick="snipAudio()">✂️ Snip Moment to Inbox</button>
+            
+            <!-- Ranged Snipping UI -->
+            <button id="snip-btn" class="text-btn" style="width:100%; background:var(--accent); color:white; padding:12px; border-radius:12px; margin-bottom:15px; font-weight:bold;" onclick="snipAudio()">✂️ Start Audio Snip</button>
+            
             <div id="transcript-container" style="padding:0 15px;"></div>
         </div>
 
@@ -347,7 +355,7 @@
     function initDB() {
         let currentDB = JSON.parse(localStorage.getItem('recall_v3_db'));
         if (!currentDB || !currentDB.notes) currentDB = { subs: [], notes: [], feedCache: [], localMedia: [], lastSync: 0, settings: {} };
-        const defSettings = { theme: 'black', feedLimit: 15, srsMode: 3, notif: { feed: {type:'daily', days:[], date:1, time:'09:00'}, recall: {type:'daily', days:[], date:1, time:'20:00'} } };
+        const defSettings = { theme: 'black', feedLimit: 15, srsMode: 3, notif: { feed: {type:'none', days:[], date:1, time:'09:00'}, recall: {type:'none', days:[], date:1, time:'20:00'} } };
         currentDB.settings = { ...defSettings, ...(currentDB.settings || {}) };
         if(!currentDB.settings.notif) currentDB.settings.notif = defSettings.notif;
         if(!currentDB.localMedia) currentDB.localMedia = [];
@@ -374,7 +382,24 @@
 
     function save() { localStorage.setItem('recall_v3_db', JSON.stringify(db)); }
 
-    // --- TOUCH SWIPE TO CLOSE ---
+    // --- PULL TO REFRESH & TOUCH SWIPE TO CLOSE ---
+    let ptrStartY = 0;
+    const scroller = document.getElementById('main-scroller');
+
+    scroller.addEventListener('touchstart', e => {
+        if (scroller.scrollTop <= 0 && document.getElementById('view-feed').classList.contains('active')) {
+            ptrStartY = e.touches[0].clientY;
+        }
+    }, {passive: true});
+
+    scroller.addEventListener('touchend', e => {
+        if (ptrStartY > 0) {
+            let diff = e.changedTouches[0].clientY - ptrStartY;
+            if (diff > 120) refreshFeed(true); // Pull down significantly triggers refresh
+        }
+        ptrStartY = 0;
+    });
+
     let touchStartY = 0;
     let swipeModal = null;
 
@@ -483,6 +508,7 @@
     function openSettings() {
         const modal = document.getElementById('settings-modal');
         modal.style.display = 'flex';
+        document.body.classList.add('modal-open');
         setTimeout(() => modal.classList.add('open'), 10);
     }
 
@@ -498,16 +524,24 @@
 
     function closeModal(id) {
         const m = document.getElementById(id);
-        m.style.transform = 'translateY(100%)'; // Enforce CSS animation via JS to prevent snap logic bugs
+        m.style.transform = 'translateY(100%)';
         setTimeout(() => { 
             m.classList.remove('open');
             m.style.display = 'none'; 
-            m.style.transform = ''; // reset for next open
+            m.style.transform = ''; 
+            document.body.classList.remove('modal-open');
         }, 300);
 
         if(id === 'media-modal') {
             document.getElementById('main-audio').pause();
-            document.getElementById('yt-container').innerHTML = ''; // Kill iframe securely
+            document.getElementById('yt-container').innerHTML = ''; 
+            document.getElementById('yt-handoff-btn').style.display = 'none';
+            
+            // Reset Snipping Engine
+            snipStartTime = null;
+            const snipBtn = document.getElementById('snip-btn');
+            if(snipBtn) { snipBtn.innerText = "✂️ Start Audio Snip"; snipBtn.style.background = "var(--accent)"; }
+            
             if(ytPlayer) ytPlayer = null;
             document.getElementById('toc-dropdown').style.display = 'none';
             document.getElementById('epub-viewer').innerHTML = ''; 
@@ -571,7 +605,7 @@
         save(); document.getElementById('library-filter').value = type; renderLibrary(); alert(`${file.name} added to Library!`);
     }
 
-    // --- FIX: ARRAYBUFFER EPUB LOADER ---
+    // --- FIX: BLOB URL EPUB LOADER ---
     async function loadSavedMedia(id, title, jumpTarget = null) {
         const file = await localforage.getItem('media_' + id);
         if(!file) return alert("File not found on device.");
@@ -593,56 +627,48 @@
         if(file.name.toLowerCase().endsWith('.pdf')) {
             document.getElementById('modal-pdf-ui').style.display = 'block';
             document.getElementById('pdf-viewer').src = URL.createObjectURL(file);
+            document.body.classList.add('modal-open');
             setTimeout(() => modal.classList.add('open'), 10);
         } else {
-            // Strict EPUB Setup
+            // High Speed EPUB Blob Generation
             document.getElementById('modal-ebook-ui').style.display = 'block';
             document.getElementById('epub-viewer').innerHTML = ''; 
             
+            document.body.classList.add('modal-open');
             setTimeout(() => {
                 modal.classList.add('open');
                 
-                // Allow modal to complete transition so width/height are finalized before rendering
+                // Wait for the modal animation to finish so the container has exact pixel height
                 setTimeout(() => {
-                    const reader = new FileReader();
-                    reader.onload = function(event) {
-                        try {
-                            const arrayBuffer = event.target.result;
-                            epubBook = ePub();
-                            epubBook.open(arrayBuffer, "binary").then(() => {
-                                // Hardcode dimensions to prevent 0x0 scaling in iOS iframes
-                                rendition = epubBook.renderTo("epub-viewer", { 
-                                    width: window.innerWidth - 40, 
-                                    height: window.innerHeight * 0.65, 
-                                    manager: "default", 
-                                    flow: "paginated" 
-                                });
-                                
-                                if (jumpTarget) rendition.display(jumpTarget);
-                                else rendition.display();
+                    const blobUrl = URL.createObjectURL(file);
+                    epubBook = ePub(blobUrl);
+                    
+                    rendition = epubBook.renderTo("epub-viewer", { 
+                        width: "100%", 
+                        height: "100%", 
+                        manager: "continuous", 
+                        flow: "paginated" 
+                    });
+                    
+                    if (jumpTarget) rendition.display(jumpTarget);
+                    else rendition.display();
 
-                                epubBook.loaded.navigation.then(function(toc){
-                                    document.getElementById('toc-dropdown').innerHTML = toc.map(c => `<div class="toc-item" onclick="rendition.display('${c.href}'); document.getElementById('toc-dropdown').style.display='none';">${c.label}</div>`).join('');
-                                });
-                                
-                                let tsX = 0; let teX = 0;
-                                rendition.on('touchstart', ev => { tsX = ev.changedTouches[0].screenX; });
-                                rendition.on('touchend', ev => { 
-                                    teX = ev.changedTouches[0].screenX; 
-                                    if (teX < tsX - 50) rendition.next(); if (teX > tsX + 50) rendition.prev();
-                                });
-                                
-                                rendition.on("selected", (cfiRange) => {
-                                    const btn = document.getElementById('floating-highlight');
-                                    btn.style.display = 'block'; btn.dataset.cfi = cfiRange; btn.dataset.text = ""; 
-                                });
-                            }).catch(err => alert("EPUB Rendering Error: " + err));
-                        } catch (e) {
-                            alert("Failed to load book data.");
-                        }
-                    };
-                    reader.readAsArrayBuffer(file); // Critical for iOS Safari
-                }, 400); 
+                    epubBook.loaded.navigation.then(function(toc){
+                        document.getElementById('toc-dropdown').innerHTML = toc.map(c => `<div class="toc-item" onclick="rendition.display('${c.href}'); document.getElementById('toc-dropdown').style.display='none';">${c.label}</div>`).join('');
+                    });
+                    
+                    let tsX = 0; let teX = 0;
+                    rendition.on('touchstart', ev => { tsX = ev.changedTouches[0].screenX; });
+                    rendition.on('touchend', ev => { 
+                        teX = ev.changedTouches[0].screenX; 
+                        if (teX < tsX - 50) rendition.next(); if (teX > tsX + 50) rendition.prev();
+                    });
+                    
+                    rendition.on("selected", (cfiRange) => {
+                        const btn = document.getElementById('floating-highlight');
+                        btn.style.display = 'block'; btn.dataset.cfi = cfiRange; btn.dataset.text = ""; 
+                    });
+                }, 500); // 500ms guaranteed CSS animation completion
             }, 10);
         }
     }
@@ -724,7 +750,7 @@
         } catch(e) { resDiv.innerHTML = "Search failed. Check connection."; }
     }
 
-    // --- PROGRESSIVE TIMEOUT FEED SYNC ---
+    // --- TIMEOUT FEED SYNC ---
     async function fetchDailyWiki() {
         const today = new Date().toISOString().split('T')[0];
         let cachedWiki = JSON.parse(localStorage.getItem('daily_wiki'));
@@ -776,7 +802,6 @@
                     const link = linkNode ? (linkNode.textContent || linkNode.getAttribute("href")) : "";
                     const pubDateRaw = node.querySelector("pubDate, published, updated")?.textContent || new Date().toISOString();
                     
-                    // Filter YouTube Shorts aggressively
                     if ((link.includes('youtube.com') || link.includes('youtu.be')) && 
                         (title.toLowerCase().includes('#shorts') || title.toLowerCase().includes('shorts'))) {
                         return; // Skip Shorts
@@ -834,10 +859,11 @@
         list.innerHTML = html;
     }
 
-    // --- INSTANT FULL TEXT EXTRACTION & YT PLAYER ---
+    // --- INSTANT ARTICLE EXTRACTOR & YOUTUBE ---
     async function openMediaModal(item) {
         const modal = document.getElementById('media-modal');
         modal.style.display = 'flex';
+        document.body.classList.add('modal-open');
         setTimeout(() => modal.classList.add('open'), 10);
         
         document.getElementById('modal-title').innerText = item.title;
@@ -856,7 +882,9 @@
             audioUI.style.display = 'block';
             const audioEl = document.getElementById('main-audio');
             const videoContainer = document.getElementById('yt-container');
-            audioEl.style.display = 'none'; videoContainer.innerHTML = '';
+            const ytHandoffBtn = document.getElementById('yt-handoff-btn');
+            
+            audioEl.style.display = 'none'; videoContainer.innerHTML = ''; ytHandoffBtn.style.display = 'none';
             
             if (item.link && (item.link.includes('youtube.com') || item.link.includes('youtu.be'))) {
                 let vidId = '';
@@ -865,6 +893,8 @@
                 
                 if(vidId) { 
                     videoContainer.innerHTML = `<iframe id="main-video" src="https://www.youtube.com/embed/${vidId}?playsinline=1&enablejsapi=1" style="width:100%; aspect-ratio:16/9; border-radius:12px; border:none; margin-bottom:15px;" allowfullscreen></iframe>`;
+                    ytHandoffBtn.style.display = 'block';
+                    ytHandoffBtn.onclick = () => window.open(item.link, '_blank');
                     setTimeout(() => { if(typeof YT !== 'undefined' && YT.Player) { ytPlayer = new YT.Player('main-video'); } }, 1000);
                 }
             } else {
@@ -884,9 +914,9 @@
             articleBody.innerHTML = `${topImg}<div id="extract-status" style="font-size:13px; color:var(--accent); text-align:center; margin-bottom:10px;">Extracting full text...</div>${contentHtml}`;
 
             try {
-                // Dual proxy strategy for full text extraction
+                // Aggressive Dual Proxy Full Text Fetch
                 const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(item.link)}`;
-                const response = await fetchWithTimeout(proxyUrl, 5000); // Fast attempt
+                const response = await fetchWithTimeout(proxyUrl, 5000); 
                 const htmlStr = await response.text();
                 
                 const doc = new DOMParser().parseFromString(htmlStr, 'text/html');
@@ -899,7 +929,6 @@
                     throw new Error("Short text");
                 }
             } catch(e) { 
-                // Fallback attempt with allorigins if CORS proxy blocks it
                 try {
                     const proxyUrl2 = `https://api.allorigins.win/get?url=${encodeURIComponent(item.link)}`;
                     const response2 = await fetchWithTimeout(proxyUrl2, 5000);
@@ -909,23 +938,17 @@
                     const article2 = reader2.parse();
                     if(article2 && article2.textContent.length > 300) {
                         articleBody.innerHTML = topImg + article2.content;
-                    } else {
-                        throw new Error("Failed");
-                    }
+                    } else { throw new Error("Failed"); }
                 } catch (e2) {
                     const status = document.getElementById('extract-status');
-                    if(status) {
-                        status.style.color = '#FF3B30';
-                        status.innerText = "Full text extraction blocked by publisher. Snippet provided below.";
-                    }
+                    if(status) { status.style.color = '#FF3B30'; status.innerText = "Extraction blocked. Snippet provided below."; }
                 }
             }
-            // Always append read original button
             articleBody.innerHTML += `<div style="margin-top: 30px; text-align: center;"><button class="glass-card" style="width:100%; color:var(--accent); font-weight:bold; border: 1px solid var(--accent); cursor:pointer;" onclick="window.open('${item.link}', '_blank')">Read Original Webpage in Safari</button></div>`;
         }
     }
 
-    // --- HIGHLIGHTING & SNIPPING ---
+    // --- HIGHLIGHTING & RANGED SNIPPING ---
     document.addEventListener('selectionchange', () => {
         const text = window.getSelection().toString().trim();
         const btn = document.getElementById('floating-highlight');
@@ -953,22 +976,45 @@
         }
     }
 
+    let snipStartTime = null;
+
     function snipAudio() {
         const modal = document.getElementById('media-modal');
         const audio = document.getElementById('main-audio');
-        let prefix = ""; let target = modal.dataset.currentLink;
+        const btn = document.getElementById('snip-btn');
+        let currentTime = 0;
+        let isYT = document.getElementById('yt-container').innerHTML !== '';
         
-        if (audio.style.display === 'block' && audio.src) {
-            prefix = `[${Math.floor(audio.currentTime)}s] `;
-            target = Math.floor(audio.currentTime);
-        } else if (document.getElementById('yt-container').innerHTML !== '') {
-            if (ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
-                let t = Math.floor(ytPlayer.getCurrentTime());
-                prefix = `[${t}s] `; target += (target.includes('?') ? `&t=${t}s` : `?t=${t}s`);
-            } else { prefix = `[YouTube Note] `; }
+        if (!isYT && audio.src) { currentTime = Math.floor(audio.currentTime); } 
+        else if (isYT && ytPlayer && typeof ytPlayer.getCurrentTime === 'function') { currentTime = Math.floor(ytPlayer.getCurrentTime()); }
+
+        if (snipStartTime === null) {
+            // STEP 1: Mark Start Time
+            snipStartTime = currentTime;
+            btn.innerText = "⏹ End Snip & Dictate Note";
+            btn.style.background = "#FF3B30";
+        } else {
+            // STEP 2: Mark End Time & Save
+            let endTime = currentTime;
+            let prefix = `[${snipStartTime}s - ${endTime}s] `;
+            let target = modal.dataset.currentLink;
+            
+            if (isYT) target += (target.includes('?') ? `&t=${snipStartTime}s` : `?t=${snipStartTime}s`);
+            else target = snipStartTime; // Store bare seconds for standard audio
+
+            // Auto-pause media so user can dictate
+            if (!isYT && audio.src) audio.pause();
+            if (isYT && ytPlayer) ytPlayer.pauseVideo();
+
+            const thought = prompt(`Snipped from ${snipStartTime}s to ${endTime}s.\n\nSince local transcription is blocked, please type or use your keyboard's Microphone 🎤 to dictate a summary:`);
+            
+            if(thought) saveNote(`${prefix}${thought}`, document.getElementById('modal-title').innerText, 'podcast', target, null, modal.dataset.currentImg);
+            
+            // Reset Button
+            snipStartTime = null;
+            btn.innerText = "✂️ Start Audio Snip";
+            btn.style.background = "var(--accent)";
         }
-        const thought = prompt("Enter your note for this media:");
-        if(thought) saveNote(`${prefix}${thought}`, document.getElementById('modal-title').innerText, 'podcast', target, null, modal.dataset.currentImg);
     }
 
     function saveNote(text, source, type, linkTarget, mediaId = null, img = "") {
@@ -1033,8 +1079,6 @@
         note.history.push({ date: new Date().toISOString(), grade: grade, interval: note.interval, ease: note.ease }); note.nextReview = Date.now() + (note.interval * 24 * 60 * 60 * 1000); note.reviewCount = (note.reviewCount || 0) + 1;
         db.notes[idx] = note; save(); showNextSRS();
     }
-
-    switchTab('inbox'); setTimeout(checkInAppReminders, 1000);
 </script>
 </body>
 </html>
